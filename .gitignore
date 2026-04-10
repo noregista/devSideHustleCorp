@@ -1,0 +1,17 @@
+# 各プロジェクトは個別の .gitignore を持つ
+# ここはルートレベルの除外設定
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+*.swp
+*.swo
+
+# Secrets（念のため）
+*.env
+.env
+config.json

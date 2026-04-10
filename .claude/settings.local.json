@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude --version)",
+      "Bash(claude login:*)",
+      "Bash(git -C /c/dev/devSideHustleCorp log --oneline -10)",
+      "Bash(git -C /c/dev/devSideHustleCorp remote -v)",
+      "Bash(git -C /c/dev/devSideHustleCorp status)",
+      "Bash(git clone:*)",
+      "Bash(python3 -c ':*)",
+      "Bash(git -C /tmp/threads_bot_scan log --oneline --all -- config.json)",
+      "Bash(git -C \"C:/dev/devSideHustleCorp\" init)",
+      "Bash(git -C \"C:/dev/devSideHustleCorp\" add --all)",
+      "Bash(git -C \"C:/dev/devSideHustleCorp\" status --short)"
+    ]
+  }
+}
