@@ -28,7 +28,10 @@
       "Bash(git -C \"C:/dev/devSideHustleCorp/01_Threads_Automation\" commit -m \"[threads_bot] run_with_pull.sh 追加: launchd実行時に自動git pullするラッパー\")",
       "Bash(git -C \"C:/dev/devSideHustleCorp/01_Threads_Automation\" push)",
       "Bash(git -C \"C:/dev/devSideHustleCorp\" add .)",
-      "Bash(git -C \"C:/dev/devSideHustleCorp\" commit -m \"[00_Corporate_Identity] mac_setup.sh: launchd を run_with_pull.sh 経由に変更\")"
+      "Bash(git -C \"C:/dev/devSideHustleCorp\" commit -m \"[00_Corporate_Identity] mac_setup.sh: launchd を run_with_pull.sh 経由に変更\")",
+      "Bash(git -C \"C:/dev/devSideHustleCorp/01_Threads_Automation\" add sync.sh sync.ps1 run_with_pull.sh)",
+      "Bash(git -C \"C:/dev/devSideHustleCorp/01_Threads_Automation\" commit -m \"[sync] 双方向編集対応: sync.sh/ps1追加、run_with_pull.sh をstash対応に強化\")",
+      "Bash(git -C \"C:/dev/devSideHustleCorp\" commit -m \"[threads_bot] サブモジュール更新: sync scripts追加\")"
     ]
   }
 }
