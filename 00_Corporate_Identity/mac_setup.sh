@@ -136,8 +136,8 @@ cat > "$PLIST_DIR/com.devSideHustleCorp.threads_bot.plist" << PLIST
     <string>com.devSideHustleCorp.threads_bot</string>
     <key>ProgramArguments</key>
     <array>
-        <string>$(which $PYTHON)</string>
-        <string>$BOT_DIR/main.py</string>
+        <string>/bin/bash</string>
+        <string>$BOT_DIR/run_with_pull.sh</string>
     </array>
     <key>WorkingDirectory</key>
     <string>$BOT_DIR</string>
