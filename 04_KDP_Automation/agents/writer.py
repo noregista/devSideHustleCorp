@@ -115,7 +115,7 @@ def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
     try:
         response = _client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=2048,
+            max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
         text = next((b.text for b in response.content if b.type == "text"), "")

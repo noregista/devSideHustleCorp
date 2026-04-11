@@ -209,7 +209,7 @@ li { margin: 0.3em 0; }
 <body>
 {html_content}
 </body>
-</html>"""
+</html>""".encode("utf-8")
         item.add_item(css)
         book.add_item(item)
         epub_chapters.append(item)
