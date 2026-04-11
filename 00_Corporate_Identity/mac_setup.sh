@@ -184,6 +184,40 @@ PLIST
 
 launchctl load "$PLIST_DIR/com.devSideHustleCorp.threads_bot.plist" 2>/dev/null || true
 launchctl load "$PLIST_DIR/com.devSideHustleCorp.auto_retry.plist" 2>/dev/null || true
+
+info "launchd (kdp_automation) を登録中..."
+KDP_DIR="$WORK_DIR/04_KDP_Automation"
+mkdir -p "$KDP_DIR/logs"
+cat > "$PLIST_DIR/com.devSideHustleCorp.kdp_automation.plist" << PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.devSideHustleCorp.kdp_automation</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>$KDP_DIR/run_with_pull.sh</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>$KDP_DIR</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key><integer>0</integer>
+        <key>Hour</key><integer>23</integer>
+        <key>Minute</key><integer>0</integer>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>$KDP_DIR/logs/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>$KDP_DIR/logs/launchd_error.log</string>
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>
+PLIST
+launchctl load "$PLIST_DIR/com.devSideHustleCorp.kdp_automation.plist" 2>/dev/null || true
 ok "launchd 登録完了"
 
 # ── 完了 ─────────────────────────────────────────────────
