@@ -18,6 +18,7 @@ cronでの自動実行例（毎週日曜23:00）:
 import json
 import logging
 import os
+import subprocess
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -26,7 +27,41 @@ BASE_DIR = Path(__file__).parent
 LOG_PATH = BASE_DIR / "logs" / "main.log"
 BOOK_HISTORY_PATH = BASE_DIR / "book_history.json"
 CONFIG_PATH = BASE_DIR / "config.json"
+CONFIG_EXAMPLE_PATH = BASE_DIR / "config.example.json"
+REQUIREMENTS_PATH = BASE_DIR / "requirements.txt"
 JST = timezone(timedelta(hours=9))
+
+
+def ensure_requirements() -> None:
+    """requirements.txt のライブラリが未インストールなら自動インストールする。"""
+    if not REQUIREMENTS_PATH.exists():
+        return
+    try:
+        import ebooklib  # noqa: F401
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        logging.info("依存ライブラリが不足しています。自動インストールします...")
+        subprocess.check_call(
+            [sys.executable, "-m", "pip", "install", "-r", str(REQUIREMENTS_PATH), "-q"]
+        )
+        logging.info("インストール完了")
+
+
+def ensure_config() -> bool:
+    """config.json が存在しなければ example からコピーして警告を出す。"""
+    if CONFIG_PATH.exists():
+        return True
+    if CONFIG_EXAMPLE_PATH.exists():
+        import shutil
+        shutil.copy(CONFIG_EXAMPLE_PATH, CONFIG_PATH)
+        logging.warning("=" * 50)
+        logging.warning("config.json を自動生成しました。")
+        logging.warning(f"  {CONFIG_PATH}")
+        logging.warning("ANTHROPIC_API_KEY を記入してから再実行してください。")
+        logging.warning("=" * 50)
+        return False
+    logging.error("config.example.json が見つかりません")
+    return False
 
 sys.path.insert(0, str(BASE_DIR))
 
@@ -86,6 +121,10 @@ def main() -> None:
     logging.info("=" * 50)
     logging.info("KDP自動生成パイプライン 開始")
     logging.info("=" * 50)
+
+    ensure_requirements()
+    if not ensure_config():
+        sys.exit(1)
 
     config = load_config()
     if not set_api_key(config):
