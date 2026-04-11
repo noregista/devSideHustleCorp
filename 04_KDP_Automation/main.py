@@ -116,6 +116,104 @@ def set_api_key(config: dict) -> bool:
     return True
 
 
+def generate_kdp_upload_info(entry: dict, output_dir: Path) -> None:
+    """KDP登録に必要な全情報をMarkdownファイルに出力する"""
+    title = entry["title"]
+    author = entry["author"]
+    meta = entry["kdp_metadata"]
+    price = meta.get("price_jpy", 980)
+    description = meta.get("description", "")
+    keywords = meta.get("keywords", [])
+
+    kw_lines = "\n".join(f"{i+1}. {kw}" for i, kw in enumerate(keywords))
+
+    content = f"""# KDP アップロード情報 — {title}
+
+生成日時: {entry['generated_at']}
+
+---
+
+## Step 1: Kindle本の詳細
+
+| 項目 | 入力値 |
+|------|--------|
+| 言語 | 日本語 |
+| 本のタイトル | {title} |
+| サブタイトル | （空欄） |
+| シリーズ・レーベル・版 | （全て空欄） |
+| 著者氏名 | {author} |
+| 権利 | 私は著作権者であり〜を選択 |
+| 露骨な性的表現 | いいえ |
+| 対象年齢 | 空欄 |
+| 主なマーケットプレイス | Amazon.co.jp |
+
+### 内容紹介（コピーして貼り付け）
+
+{description}
+
+### カテゴリー
+1. ビジネス・経済 → 業務改善
+2. コンピュータ・IT → 一般・入門書 → その他の入門書
+
+### キーワード（7つ、1つずつ入力）
+
+{kw_lines}
+
+### 本の発売オプション
+`本の発売準備ができました` を選択
+
+---
+
+## Step 2: Kindle本のコンテンツ
+
+| 項目 | 設定値 |
+|------|--------|
+| ページを読む方向 | 左から右（横書き） |
+| DRM | はい（適用する） |
+| 原稿 | output/ の .epub ファイル |
+| 表紙 | output/ の .jpg ファイル（fal.ai生成） |
+| AI生成コンテンツ | はい |
+| ISBN・出版社・主コード | 全て空欄 |
+| アクセシビリティ | スキップ |
+
+---
+
+## Step 3: 価格設定
+
+| 項目 | 設定値 |
+|------|--------|
+| KDPセレクト | 登録しない |
+| 出版地域 | すべての地域（全世界） |
+| ロイヤリティ | 70% |
+| Amazon.co.jp価格 | ¥{price} |
+
+→ 他マーケットプレイスの価格は自動計算される
+
+---
+
+## epub転送（Macで実行）
+
+```bash
+cd ~/dev/devSideHustleCorp/04_KDP_Automation
+bash transfer_to_windows.sh
+```
+
+---
+
+## 出版後: ASIN記録（Macで実行）
+
+```bash
+cd ~/dev/devSideHustleCorp/04_KDP_Automation
+python3 record_asin.py B0XXXXXXXXX
+```
+"""
+
+    info_path = output_dir / "KDP_upload_info.md"
+    with open(info_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    logging.info(f"KDPアップロード情報生成: {info_path}")
+
+
 def main() -> None:
     setup_file_logging()
     logging.info("=" * 50)
@@ -166,7 +264,8 @@ def main() -> None:
     # --- STEP 4: epub変換 ---
     logging.info("[STEP 4/4] epub変換開始")
     from agents.formatter import build_epub
-    output_path = build_epub(book_data, kdp_metadata)
+    fal_key = config.get("fal_key", "")
+    output_path = build_epub(book_data, kdp_metadata, fal_key=fal_key)
     if not output_path:
         logging.error("epub生成失敗。終了します。")
         sys.exit(1)
@@ -183,13 +282,16 @@ def main() -> None:
         "chapter_count": len(book_data["chapters"]),
         "epub_path": str(output_path),
         "kdp_metadata": kdp_metadata,
-        "status": "generated",
+        "status": "pending_upload",
         "asin": None,
         "published_at": None,
         "price_jpy": kdp_metadata.get("price_jpy"),
     }
     history.append(entry)
     save_history(history)
+
+    # --- KDPアップロード情報生成 ---
+    generate_kdp_upload_info(entry, output_path.parent)
 
     logging.info("=" * 50)
     logging.info("✅ パイプライン完了")

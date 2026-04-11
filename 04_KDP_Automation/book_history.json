@@ -1,5 +1,27 @@
 [
   {
+    "generated_at": "2026-04-12T01:05:10.000000+09:00",
+    "title": "40代からの資産形成戦略",
+    "author": "山崎 拓実",
+    "genre": "ビジネス/投資・資産形成",
+    "total_chars": 0,
+    "chapter_count": 0,
+    "epub_path": "/Users/seidai/dev/devSideHustleCorp/04_KDP_Automation/output/20260412_010051_40代からの資産形成戦略.epub",
+    "kdp_metadata": {
+      "price_jpy": 980,
+      "categories": [
+        "ビジネス・経済",
+        "投資・資産形成"
+      ],
+      "keywords": [],
+      "description": ""
+    },
+    "status": "pending_upload",
+    "asin": null,
+    "published_at": null,
+    "price_jpy": 980
+  },
+  {
     "generated_at": "2026-04-12T01:11:40.153620+09:00",
     "title": "ChatGPT・Claude完全攻略ガイド",
     "author": "山崎 拓実",
@@ -24,7 +46,7 @@
       ],
       "description": "ChatGPT・Claudeの基礎から実践まで完全網羅。初心者向けに文章作成・プログラミング副業の稼ぎ方を詳解。使えるプロンプト50個以上、実現例付き。初月から月5万円を目指す現実的なロードマップを一冊に凝縮。AIスキル必須化時代の必読書。"
     },
-    "status": "generated",
+    "status": "submitted",
     "asin": null,
     "published_at": null,
     "price_jpy": 980
