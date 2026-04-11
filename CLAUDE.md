@@ -83,6 +83,9 @@ devSideHustleCorp/
 - ミスや修正依頼があった場合は、**必ず `99_System_Logs/MEMORY.md` を更新**する
 - 同じミスを二度繰り返さない
 - 新しい方針・好みが確認された場合も即座に記録する
+- セッション中の発見・失敗・改善は **`99_System_Logs/LEARNINGS.md`** に観察ログとして追記する
+- 新しいタスクや完了事項は **`03_Finance_and_Metrics/Business-Tracker.md`** を更新する
+- **新しいアイデアを実行する前に Business-Tracker.md の未完了タスクと照合し、優先順位を確認する**
 
 ---
 
@@ -95,4 +98,4 @@ devSideHustleCorp/
 
 ---
 
-*最終更新: 2026-04-10 | 作成者: AI統括マネージャー（初期セットアップ）*
+*最終更新: 2026-04-11 | 更新者: AI統括マネージャー（LEARNINGS.md・Business-Tracker.md 導入）*
