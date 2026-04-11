@@ -15,3 +15,5 @@ desktop.ini
 *.env
 .env
 config.json
+99_System_Logs/google_credentials.json
+99_System_Logs/google_token.json
