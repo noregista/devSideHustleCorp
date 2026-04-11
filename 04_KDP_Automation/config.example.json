@@ -1,0 +1,11 @@
+{
+  "anthropic_api_key": "YOUR_ANTHROPIC_API_KEY",
+  "book_settings": {
+    "target_chars": 25000,
+    "chapter_count": 6,
+    "language": "ja"
+  },
+  "schedule": {
+    "books_per_week": 1
+  }
+}
