@@ -44,10 +44,13 @@
 | ✅ 完了 | 初回出版申請（ChatGPT・Claude完全攻略ガイド） | 2026-04-12 | ¥980・審査中（72時間以内に販売開始） |
 | ✅ 完了 | launchd 週次スケジュール登録（毎週日曜23:00） | 2026-04-12 | mac_setup.shに組み込み済み |
 | ✅ 完了 | fal.ai表紙自動生成・transfer_to_windows.sh・record_asin.py 実装 | 2026-04-12 | |
+| ✅ 完了 | Mac側で git pull して最新コードを反映 | 2026-04-12 | fal.ai表紙生成・KDP_upload_info.md自動生成を有効化 |
 | ⬜ 未着手 | ASIN記録（販売開始後） | 2026-04-15頃 | `python3 record_asin.py B0XXXXXXXXX` |
-| ⬜ 未着手 | 40代からの資産形成戦略 の出版判断 | 未定 | book_history.json: pending_upload |
+| ⬜ 未着手 | KDPセレクト登録（審査完了後） | 2026-04-15頃 | KENP収益発生に必須 |
+| ⬜ 未着手 | 著者セントラル登録 | 2026-04-15頃 | KDP→マーケティング→著者セントラル |
+| ⬜ 未着手 | Amazon広告（AMS）開始 | 2026-04-15頃 | オート＋マニュアル併用。初期予算¥500/日 |
+| ✅ 完了 | 40代からの資産形成戦略 の出版判断 | 2026-04-12 | 出版しない決定。book_history.json: cancelled |
 | ⬜ 未着手 | 第2回出版（次の日曜自動生成分） | 2026-04-19 | Macで自動実行予定 |
-| ⬜ 未着手 | Mac側で git pull して最新コードを反映 | 早急 | fal.ai表紙生成・KDP_upload_info.md自動生成を有効化 |
 
 ---
 

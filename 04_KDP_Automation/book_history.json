@@ -16,10 +16,11 @@
       "keywords": [],
       "description": ""
     },
-    "status": "pending_upload",
+    "status": "cancelled",
     "asin": null,
     "published_at": null,
-    "price_jpy": 980
+    "price_jpy": 980,
+    "cancel_reason": "オーナー判断: 出版しない"
   },
   {
     "generated_at": "2026-04-12T01:11:40.153620+09:00",

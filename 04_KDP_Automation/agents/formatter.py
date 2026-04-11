@@ -361,6 +361,32 @@ li { margin: 0.3em 0; }
         book.add_item(item)
         epub_chapters.append(item)
 
+    # 巻末シリーズリンクページ
+    series_section = book_data.get("series_section", "")
+    if series_section and series_section.strip():
+        series_html = _markdown_to_html(series_section.strip())
+        series_item = epub.EpubHtml(
+            title="このシリーズの他の作品",
+            file_name="series_links.xhtml",
+            lang="ja",
+        )
+        series_item.content = f"""<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <title>このシリーズの他の作品</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+{series_html}
+</body>
+</html>""".encode("utf-8")
+        series_item.add_item(css)
+        book.add_item(series_item)
+        epub_chapters.append(series_item)
+        chapters = list(chapters) + [{"title": "このシリーズの他の作品"}]
+
     book.toc = [(epub.Section(ch["title"]), [item]) for ch, item in zip(chapters, epub_chapters)]
     book.spine = ["nav"] + epub_chapters
     book.add_item(epub.EpubNcx())

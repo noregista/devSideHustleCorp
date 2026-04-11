@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from pathlib import Path
 from typing import Any, Optional
 
 try:
@@ -23,7 +24,7 @@ try:
 except ImportError:
     _client = None
 
-TARGET_CHARS_PER_CHAPTER = 3500
+TARGET_CHARS_PER_CHAPTER = 2000  # 全体2万字目標（8章構成で約2000字/章）
 OUTLINE_PROMPT = """
 あなたは日本のベストセラー実用書ライターです。
 以下のテーマで電子書籍のアウトラインを作成してください。
@@ -92,9 +93,22 @@ CHAPTER_PROMPT = """
 - 難しい専門用語は使わず、中学生でもわかる言葉で書く
 - 読者が「自分のことだ」と感じる共感ポイントを必ず入れる
 - 章末に「まとめ」を入れる（箇条書き3〜5点）
+- まとめの後に「今すぐできるアクション」を追加する（読者が今日から実践できる具体的な手順を箇条書き3〜5項目）
 
 本文のみ返してください（JSONではなく、そのままのテキスト）。
 章タイトルは「# {chapter_title}」の形式で始めること。
+"""
+
+SERIES_LINK_TEMPLATE = """
+
+---
+
+## このシリーズの他の作品
+
+{series_items}
+
+同シリーズの最新作は Amazon Kindle でお読みいただけます。
+「{author}」で検索してください。
 """
 
 
@@ -171,6 +185,41 @@ def generate_chapter(
         return None
 
 
+def _build_series_link_section(current_title: str, author: str) -> str:
+    """book_history.jsonから既刊（published/submitted）を読み込み巻末リンクセクションを生成する"""
+    history_path = Path(__file__).parent.parent / "book_history.json"
+    if not history_path.exists():
+        return ""
+
+    try:
+        with open(history_path, encoding="utf-8") as f:
+            history: list[dict] = json.load(f)
+    except Exception:
+        return ""
+
+    items = []
+    for entry in history:
+        if entry.get("status") not in ("published", "submitted"):
+            continue
+        title = entry.get("title", "")
+        if title == current_title:
+            continue
+        asin = entry.get("asin")
+        if asin:
+            url = f"https://www.amazon.co.jp/dp/{asin}"
+            items.append(f"- **{title}** → {url}")
+        else:
+            items.append(f"- **{title}**（Amazon Kindle にて販売中）")
+
+    if not items:
+        return ""
+
+    return SERIES_LINK_TEMPLATE.format(
+        series_items="\n".join(items),
+        author=author,
+    )
+
+
 def generate_book(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
     logging.info("=== writer 開始 ===")
 
@@ -232,12 +281,20 @@ def generate_book(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
 
     total_chars = sum(len(c["content"]) for c in chapters_content)
     logging.info(f"本文生成完了: {len(chapters_content)}章 / 合計{total_chars:,}字")
+
+    # 巻末シリーズリンク
+    author = outline.get("author", "")
+    series_section = _build_series_link_section(book_title, author)
+    if series_section:
+        logging.info("巻末シリーズリンクを追加")
+
     logging.info("=== writer 完了 ===")
 
     return {
         "outline": outline,
         "chapters": chapters_content,
         "total_chars": total_chars,
+        "series_section": series_section,
     }
 
 
