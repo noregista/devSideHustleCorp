@@ -1,5 +1,5 @@
 config.json
-#output/
+output/
 research_cache/
 logs/
 *.tmp
