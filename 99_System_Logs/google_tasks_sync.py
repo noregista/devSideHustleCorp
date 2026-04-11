@@ -151,10 +151,33 @@ def list_tasks(service, tasklist_id: str) -> None:
         print(f"  {status} {i}. {task['title']}")
 
 
+def complete_task(service, tasklist_id: str, keyword: str) -> None:
+    """キーワードにマッチするタスクを完了にする"""
+    result = service.tasks().list(tasklist=tasklist_id, showCompleted=False).execute()
+    items = result.get("items", [])
+    matched = [t for t in items if keyword in t["title"]]
+
+    if not matched:
+        print(f"「{keyword}」にマッチするタスクが見つかりません")
+        list_tasks(service, tasklist_id)
+        return
+
+    for task in matched:
+        service.tasks().patch(
+            tasklist=tasklist_id,
+            task=task["id"],
+            body={"status": "completed"}
+        ).execute()
+        print(f"  [完了] {task['title']}")
+
+    print(f"\n{len(matched)}件を完了にしました")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Google Tasks 同期")
     parser.add_argument("--clear", action="store_true", help="既存タスクをクリアして同期")
     parser.add_argument("--list", action="store_true", help="タスク一覧を表示")
+    parser.add_argument("--complete", metavar="KEYWORD", help="キーワードにマッチするタスクを完了にする")
     args = parser.parse_args()
 
     print("Google Tasks に接続中...")
@@ -163,6 +186,10 @@ def main():
 
     if args.list:
         list_tasks(service, tasklist_id)
+        return
+
+    if args.complete:
+        complete_task(service, tasklist_id, args.complete)
         return
 
     print(f"\nBusiness-Tracker.md から未完了タスクを読み込み中...")
