@@ -35,17 +35,19 @@
 
 ---
 
-### 04_KDP_Automation（新規・初回実行待ち）
+### 04_KDP_Automation（稼働中・初回出版申請済み）
 
 | ステータス | タスク | 期限 | 備考 |
 |----------|------|------|------|
 | ✅ 完了 | パイプライン初期構築 | 2026-04-12 | researcher/scorer/writer/formatter/main |
-| ⬜ 未着手 | Macに依存ライブラリをインストール | 早急 | `pip install ebooklib Pillow anthropic` |
-| ⬜ 未着手 | config.json を作成してAPIキーを設定 | 早急 | config.example.json をコピーして編集 |
-| ⬜ 未着手 | 初回テスト実行（`python3 main.py`） | 早急 | epub が output/ に生成されるか確認 |
-| ⬜ 未着手 | KDPアカウント開設 | 初回出版前 | kdp.amazon.co.jp |
-| ⬜ 未着手 | 初回出版 | 初回実行後 | 生成されたepubをKDPにアップロード |
-| ⬜ 未着手 | cron/launchd への週次スケジュール登録 | 初回出版確認後 | 毎週日曜23:00 推奨 |
+| ✅ 完了 | KDPアカウント開設・税務情報登録 | 2026-04-12 | W-8BEN署名済み |
+| ✅ 完了 | 初回出版申請（ChatGPT・Claude完全攻略ガイド） | 2026-04-12 | ¥980・審査中（72時間以内に販売開始） |
+| ✅ 完了 | launchd 週次スケジュール登録（毎週日曜23:00） | 2026-04-12 | mac_setup.shに組み込み済み |
+| ✅ 完了 | fal.ai表紙自動生成・transfer_to_windows.sh・record_asin.py 実装 | 2026-04-12 | |
+| ⬜ 未着手 | ASIN記録（販売開始後） | 2026-04-15頃 | `python3 record_asin.py B0XXXXXXXXX` |
+| ⬜ 未着手 | 40代からの資産形成戦略 の出版判断 | 未定 | book_history.json: pending_upload |
+| ⬜ 未着手 | 第2回出版（次の日曜自動生成分） | 2026-04-19 | Macで自動実行予定 |
+| ⬜ 未着手 | Mac側で git pull して最新コードを反映 | 早急 | fal.ai表紙生成・KDP_upload_info.md自動生成を有効化 |
 
 ---
 
@@ -70,6 +72,10 @@
 
 ## 直近の完了事項（直近30日）
 
+- 2026-04-12: KDP初回出版申請（ChatGPT・Claude完全攻略ガイド ¥980）審査中
+- 2026-04-12: fal.ai高品質表紙生成・transfer_to_windows.sh・record_asin.py 実装
+- 2026-04-12: KDP_upload_guide.md（次回から画像不要で設定完了できるガイド）作成
+- 2026-04-12: KDPアカウント開設・銀行口座・税務情報（W-8BEN）登録完了
 - 2026-04-12: 04_KDP_Automation パイプライン初期構築
 - 2026-04-11: writer.py バズサーチデータ全件適用
 - 2026-04-11: LEARNINGS.md・Business-Tracker.md 導入
