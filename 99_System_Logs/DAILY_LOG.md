@@ -25,5 +25,11 @@
 - KDP出版数: 1冊（申請中）
 - 累計epub生成: 2冊（ChatGPT本・40代資産形成本）
 - Threads: 継続稼働中
+- API使用量: Proプラン53%消費（週間・セッション共に）
+
+### その他メモ
+- DAILY_LOG・日報の仕組みを導入（セッション終了時に自動記録）
+- APIクレジット残$1.99はボット用。Claude Codeはサブスク（Pro）で別管理
+- Proプランの使用量はclaude.ai/settings/usageで確認可能
 
 ---
