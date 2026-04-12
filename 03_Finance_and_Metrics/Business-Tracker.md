@@ -77,6 +77,11 @@
 
 ## 直近の完了事項（直近30日）
 
+- 2026-04-12: check_health.sh 作成（Threads/KDP/Git の稼働状態一括チェック）
+- 2026-04-12: monthly_kpi.py 作成（月次KPI自動集計 → KPI_YYYY_MM.md 出力）
+- 2026-04-12: optimize_post_times.py 作成（analyst_feedback.jsonから最適投稿時間を自動更新）
+- 2026-04-12: 投稿時間をlaunchd起動時刻に合わせて修正（09:00/12:00/21:00）
+- 2026-04-12: Threads config.json をサブモジュールに統一（旧threads_botから移行）
 - 2026-04-12: KDP初回出版申請（ChatGPT・Claude完全攻略ガイド ¥980）審査中
 - 2026-04-12: fal.ai高品質表紙生成・transfer_to_windows.sh・record_asin.py 実装
 - 2026-04-12: KDP_upload_guide.md（次回から画像不要で設定完了できるガイド）作成
