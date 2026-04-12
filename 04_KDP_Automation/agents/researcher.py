@@ -147,6 +147,9 @@ RESEARCH_PROMPT = """
 【今日のトレンド記事タイトル（実データ）】
 {trending_titles}
 
+【既刊・生成済みタイトル（重複禁止）】
+{published_titles}
+
 上記のトレンドを参考に、日本語Amazon KDPで売れやすい電子書籍のテーマを8つ提案してください。
 
 【選定基準】
@@ -155,6 +158,7 @@ RESEARCH_PROMPT = """
 - 競合が多すぎず、新規参入の余地がある
 - 時流に乗っているが、数年間は需要が続く
 - ジャンルは問わない（ビジネス・健康・趣味・人間関係・節約・AI活用など）
+- 「既刊・生成済みタイトル」と同じテーマ・内容は提案しない（シリーズ展開は可）
 
 以下のJSON形式のみで返すこと：
 
@@ -177,6 +181,22 @@ RESEARCH_PROMPT = """
 """
 
 
+def load_published_titles() -> list[str]:
+    """book_history.jsonから既刊・生成済みタイトルを取得する（cancelled除く）"""
+    history_path = BASE_DIR / "book_history.json"
+    if not history_path.exists():
+        return []
+    try:
+        with open(history_path, encoding="utf-8") as f:
+            history = json.load(f)
+        return [
+            entry["title"] for entry in history
+            if entry.get("status") not in ("cancelled",) and entry.get("title")
+        ]
+    except Exception:
+        return []
+
+
 def research_topics(trending_titles: list[str]) -> Optional[dict]:
     if _client is None:
         logging.error("ANTHROPIC_API_KEY が設定されていません")
@@ -184,10 +204,17 @@ def research_topics(trending_titles: list[str]) -> Optional[dict]:
 
     today = datetime.now(tz=JST).strftime("%Y-%m-%d")
     titles_text = "\n".join(f"- {t}" for t in trending_titles)
+
+    published = load_published_titles()
+    published_text = "\n".join(f"- {t}" for t in published) if published else "（なし）"
+    if published:
+        logging.info(f"既刊タイトルを除外リストに追加: {len(published)}件")
+
     prompt = RESEARCH_PROMPT.format(
         date=today,
         trending_titles=titles_text,
         source_count=len(trending_titles),
+        published_titles=published_text,
     )
 
     logging.info("KDPテーマ生成開始（実トレンドデータ使用）...")
