@@ -293,6 +293,21 @@ def main() -> None:
     # --- KDPアップロード情報生成 ---
     generate_kdp_upload_info(entry, output_path.parent)
 
+    # --- Google Tasks にアップロードTODOを追加 ---
+    try:
+        sys.path.insert(0, str(BASE_DIR.parent / "99_System_Logs"))
+        from google_tasks_sync import get_service, get_or_create_tasklist, sync_tasks
+        gt_service = get_service()
+        gt_tasklist_id = get_or_create_tasklist(gt_service)
+        gt_task = {
+            "title": f"[KDP] アップロード「{entry['title']}」",
+            "notes": f"epub: {output_path.name}\n推奨価格: ¥{kdp_metadata.get('price_jpy', 980)}",
+        }
+        sync_tasks(gt_service, gt_tasklist_id, [gt_task])
+        logging.info("Google Tasks にアップロードTODOを追加しました")
+    except Exception as e:
+        logging.warning(f"Google Tasks追加スキップ: {e}")
+
     # --- Threads告知投稿 ---
     from agents.threads_notifier import notify as threads_notify
     generation_minutes = int((datetime.now(tz=JST) - datetime.fromisoformat(entry["generated_at"])).total_seconds() / 60) + 1
