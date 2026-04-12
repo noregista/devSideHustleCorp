@@ -293,6 +293,11 @@ def main() -> None:
     # --- KDPアップロード情報生成 ---
     generate_kdp_upload_info(entry, output_path.parent)
 
+    # --- Threads告知投稿 ---
+    from agents.threads_notifier import notify as threads_notify
+    generation_minutes = int((datetime.now(tz=JST) - datetime.fromisoformat(entry["generated_at"])).total_seconds() / 60) + 1
+    threads_notify(entry, config, generation_minutes=generation_minutes, dry_run=config.get("dry_run", False))
+
     logging.info("=" * 50)
     logging.info("✅ パイプライン完了")
     logging.info(f"   タイトル : {entry['title']}")

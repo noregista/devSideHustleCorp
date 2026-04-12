@@ -1,5 +1,7 @@
 {
   "anthropic_api_key": "YOUR_ANTHROPIC_API_KEY",
+  "fal_key": "YOUR_FAL_KEY",
+  "dry_run": false,
   "book_settings": {
     "target_chars": 25000,
     "chapter_count": 6,
@@ -7,5 +9,10 @@
   },
   "schedule": {
     "books_per_week": 1
+  },
+  "threads_notify": {
+    "enabled": false,
+    "access_token": "YOUR_THREADS_LONG_LIVED_TOKEN",
+    "threads_user_id": "YOUR_THREADS_USER_ID"
   }
 }
