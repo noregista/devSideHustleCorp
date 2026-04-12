@@ -29,6 +29,7 @@ BOOK_HISTORY_PATH = BASE_DIR / "book_history.json"
 CONFIG_PATH = BASE_DIR / "config.json"
 CONFIG_EXAMPLE_PATH = BASE_DIR / "config.example.json"
 REQUIREMENTS_PATH = BASE_DIR / "requirements.txt"
+KDP_PAUSE_PATH = BASE_DIR / "kdp_pause.json"
 JST = timezone(timedelta(hours=9))
 
 
@@ -216,6 +217,18 @@ python3 record_asin.py B0XXXXXXXXX
 
 def main() -> None:
     setup_file_logging()
+
+    # 一時停止チェック（kdp_pause.json: {"active": true} で停止）
+    if KDP_PAUSE_PATH.exists():
+        try:
+            with open(KDP_PAUSE_PATH, encoding="utf-8") as f:
+                pause = json.load(f)
+            if pause.get("active", False):
+                logging.info("KDP一時停止中（kdp_pause.json: active=true）。スキップします。")
+                sys.exit(0)
+        except Exception:
+            pass
+
     logging.info("=" * 50)
     logging.info("KDP自動生成パイプライン 開始")
     logging.info("=" * 50)
