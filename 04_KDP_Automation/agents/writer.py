@@ -15,14 +15,20 @@ import re
 from pathlib import Path
 from typing import Any, Optional
 
+import os
+
 try:
     import anthropic as _anthropic_module
-    import os
     _client: Optional[Any] = (
         _anthropic_module.Anthropic() if os.environ.get("ANTHROPIC_API_KEY") else None
     )
 except ImportError:
     _client = None
+
+try:
+    from agents.utils import api_call_with_retry, parse_json_response
+except ImportError:
+    from utils import api_call_with_retry, parse_json_response  # type: ignore[no-redef]
 
 TARGET_CHARS_PER_CHAPTER = 2000  # 全体2万字目標（8章構成で約2000字/章）
 OUTLINE_PROMPT = """
@@ -117,6 +123,47 @@ SERIES_LINK_TEMPLATE = """
 """
 
 
+AUDIT_PROMPT = """
+以下の章本文を読んで、品質基準を満たしているか確認してください。
+
+【チェック項目】
+1. 具体的な数値・事例が1つ以上含まれているか
+2. 「今すぐできるアクション」セクションが存在するか
+3. 章末に「まとめ」が含まれているか
+4. 専門性・根拠を示す表現（「〜の調査では」等）があるか
+
+以下のJSONのみで返してください：
+{{"pass": true, "issues": []}}
+
+---
+{chapter_text}
+"""
+
+
+def audit_chapter(chapter_text: str) -> bool:
+    """Haiku で章の品質を自動監査する。pass=False の場合は警告ログを出す。"""
+    if _client is None:
+        return True  # クライアント未設定時はスキップ
+    prompt = AUDIT_PROMPT.format(chapter_text=chapter_text[:3000])  # 先頭3000字で判定
+    try:
+        response = api_call_with_retry(
+            _client.messages.create,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = next((b.text for b in response.content if b.type == "text"), "")
+        result = parse_json_response(text)
+        if result and not result.get("pass", True):
+            issues = result.get("issues", [])
+            logging.warning(f"品質監査: 改善点あり → {issues}")
+            return False
+        return True
+    except Exception as e:
+        logging.warning(f"品質監査スキップ（エラー）: {e}")
+        return True
+
+
 def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
     if _client is None:
         return None
@@ -132,22 +179,16 @@ def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
 
     logging.info("アウトライン生成中...")
     try:
-        response = _client.messages.create(
+        response = api_call_with_retry(
+            _client.messages.create,
             model="claude-sonnet-4-6",
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
         text = next((b.text for b in response.content if b.type == "text"), "")
-        code_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
-        raw = code_match.group(1) if code_match else None
-        if not raw:
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            raw = match.group() if match else None
-        if not raw:
-            return None
-        raw = re.sub(r',\s*([}\]])', r'\1', raw)
-        outline = json.loads(raw)
-        logging.info(f"アウトライン完成: {len(outline.get('chapters', []))}章構成")
+        outline = parse_json_response(text)
+        if outline:
+            logging.info(f"アウトライン完成: {len(outline.get('chapters', []))}章構成")
         return outline
     except Exception as e:
         logging.error(f"アウトライン生成失敗: {e}")
@@ -178,13 +219,17 @@ def generate_chapter(
     )
 
     try:
-        response = _client.messages.create(
+        response = api_call_with_retry(
+            _client.messages.create,
             model="claude-sonnet-4-6",
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
         text = next((b.text for b in response.content if b.type == "text"), "")
-        return text.strip()
+        chapter_text = text.strip()
+        # Auto-Auditing: 品質チェック（警告ログのみ、ブロックはしない）
+        audit_chapter(chapter_text)
+        return chapter_text
     except Exception as e:
         logging.error(f"章生成失敗 [{chapter_label}]: {e}")
         return None

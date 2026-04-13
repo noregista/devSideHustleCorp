@@ -14,14 +14,20 @@ import logging
 import re
 from typing import Any, Optional
 
+import os
+
 try:
     import anthropic as _anthropic_module
-    import os
     _client: Optional[Any] = (
         _anthropic_module.Anthropic() if os.environ.get("ANTHROPIC_API_KEY") else None
     )
 except ImportError:
     _client = None
+
+try:
+    from agents.utils import call_claude, parse_json_response
+except ImportError:
+    from utils import call_claude, parse_json_response  # type: ignore[no-redef]
 
 SCORE_PROMPT = """
 あなたはAmazon KDP日本語市場の専門家です。
@@ -66,7 +72,7 @@ SCORE_PROMPT = """
 """
 
 
-def score_candidates(candidates: list[dict]) -> Optional[dict]:
+def score_candidates(candidates: list[dict], gemini_key: str = "") -> Optional[dict]:
     if _client is None:
         logging.error("ANTHROPIC_API_KEY が設定されていません")
         return None
@@ -82,31 +88,23 @@ def score_candidates(candidates: list[dict]) -> Optional[dict]:
 
     logging.info(f"スコアリング開始: {len(candidates)}件の候補を評価中...")
     try:
-        response = _client.messages.create(
+        text = call_claude(
+            _client, prompt,
             model="claude-haiku-4-5-20251001",
             max_tokens=2048,
-            messages=[{"role": "user", "content": prompt}],
+            gemini_key=gemini_key,
         )
-        text = next((b.text for b in response.content if b.type == "text"), "")
-        code_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
-        raw = code_match.group(1) if code_match else None
-        if not raw:
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            raw = match.group() if match else None
-        if not raw:
-            logging.error("レスポンスにJSONが見つかりません")
+        if not text:
             return None
-        raw = re.sub(r',\s*([}\]])', r'\1', raw)
-        result = json.loads(raw)
+        result = parse_json_response(text)
+        if not result:
+            return None
 
         selected_idx = result.get("selected_index", 0)
         selected = candidates[selected_idx]
         result["selected_candidate"] = selected
         logging.info(f"選定完了: 「{selected.get('title')}」（index={selected_idx}）")
         return result
-    except json.JSONDecodeError as e:
-        logging.error(f"JSONパースエラー: {e}")
-        return None
     except Exception as e:
         logging.error(f"スコアリング失敗: {e}")
         return None
@@ -115,7 +113,8 @@ def score_candidates(candidates: list[dict]) -> Optional[dict]:
 def main(research_result: dict) -> Optional[dict]:
     logging.info("=== scorer 開始 ===")
     candidates = research_result.get("candidates", [])
-    result = score_candidates(candidates)
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    result = score_candidates(candidates, gemini_key=gemini_key)
     logging.info("=== scorer 完了 ===")
     return result
 

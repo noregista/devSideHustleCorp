@@ -1,3 +1,4 @@
 anthropic
 ebooklib
 Pillow
+google-generativeai

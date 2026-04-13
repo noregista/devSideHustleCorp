@@ -31,6 +31,11 @@ try:
 except ImportError:
     _client = None
 
+try:
+    from agents.utils import call_claude, parse_json_response
+except ImportError:
+    from utils import call_claude, parse_json_response  # type: ignore[no-redef]
+
 socket.setdefaulttimeout(15)
 
 BASE_DIR = Path(__file__).parent.parent
@@ -197,7 +202,7 @@ def load_published_titles() -> list[str]:
         return []
 
 
-def research_topics(trending_titles: list[str]) -> Optional[dict]:
+def research_topics(trending_titles: list[str], gemini_key: str = "") -> Optional[dict]:
     if _client is None:
         logging.error("ANTHROPIC_API_KEY が設定されていません")
         return None
@@ -219,27 +224,18 @@ def research_topics(trending_titles: list[str]) -> Optional[dict]:
 
     logging.info("KDPテーマ生成開始（実トレンドデータ使用）...")
     try:
-        response = _client.messages.create(
+        text = call_claude(
+            _client, prompt,
             model="claude-haiku-4-5-20251001",
             max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
+            gemini_key=gemini_key,
         )
-        text = next((b.text for b in response.content if b.type == "text"), "")
-        code_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
-        raw = code_match.group(1) if code_match else None
-        if not raw:
-            match = re.search(r'\{.*\}', text, re.DOTALL)
-            raw = match.group() if match else None
-        if not raw:
-            logging.error("レスポンスにJSONが見つかりません")
+        if not text:
             return None
-        raw = re.sub(r',\s*([}\]])', r'\1', raw)
-        data = json.loads(raw)
-        logging.info(f"テーマ生成完了: {len(data.get('candidates', []))}件の候補")
+        data = parse_json_response(text)
+        if data:
+            logging.info(f"テーマ生成完了: {len(data.get('candidates', []))}件の候補")
         return data
-    except json.JSONDecodeError as e:
-        logging.error(f"JSONパースエラー: {e}")
-        return None
     except Exception as e:
         logging.error(f"リサーチ失敗: {e}")
         return None
@@ -259,7 +255,8 @@ def main() -> Optional[dict]:
         trending_titles = []
 
     # Step2: 実データをClaudeに食わせてテーマ生成
-    result = research_topics(trending_titles)
+    gemini_key = os.environ.get("GEMINI_API_KEY", "")
+    result = research_topics(trending_titles, gemini_key=gemini_key)
 
     if result:
         today = datetime.now(tz=JST).strftime("%Y-%m-%d")
