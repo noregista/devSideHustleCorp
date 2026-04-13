@@ -33,3 +33,35 @@
 - Proプランの使用量はclaude.ai/settings/usageで確認可能
 
 ---
+
+## 2026-04-13
+
+### 完了
+- **Batch API + Prompt Caching 導入**：全章を一括生成（50%コスト削減）、システムプロンプトをキャッシュ化（2章目以降1/10コスト）→ 合計約75%削減見込み
+- **Geminiフォールバック修正**：config.jsonの`gemini_api_key`が`os.environ`に反映されていなかったバグを修正
+- **研究キャッシュ再利用**：当日のresearch_cache/YYYY-MM-DD.jsonがあればresearcher.pyをスキップ
+- **章再生成ロジック強化**：500字未満またはaudit失敗で自動リトライ
+- **epub修正**：`**太字**`→`<strong>`変換、番号リストを`<ol>`で正しく出力
+- **生成時間計測バグ修正**：パイプライン開始時刻を正確に計測
+- **Devil's Advocateレビュー**：Haikuがアウトラインを批評、失敗時Opusが再生成
+- **dry_runモード完全対応**：ファイル保存・Google Tasks・Threads投稿をスキップ
+- **Opus 4.6でアウトライン生成**：価格67%低下で採用、最高品質の構成生成
+- **AI臭さ除去（naturalize_chapter）**：Haikuが各章を自然な日本語に後処理
+- **Reddit RSSソース追加**：r/selfpublishing, r/Entrepreneur, r/productivity（国際トレンド先行検知）
+
+### 翌日の優先タスク
+- Mac側で `git pull`（全改善を取り込む）
+- Amazon KDPで初回本の審査状況を確認（72時間以内に販売開始のはず）
+- ASIN判明次第 `python3 record_asin.py B0XXXXXXXXX` で記録
+- 次の自動実行は日曜23:00（全機能フル稼働の初回テスト）
+
+### 数値
+- KDP出版数: 1冊（審査中）
+- 累計epub生成: 2冊
+- git commits（本日）: 5件（Batch API / epub修正 / バグ修正 / Devil's Advocate / Opus+AI臭さ除去）
+- パイプライン完成度: ほぼ100%（残: コスト実績値の記録くらい）
+
+### その他メモ
+- コアパイプラインに残バグなし。日曜の自動実行が全機能フル稼働の初回になる
+
+---
