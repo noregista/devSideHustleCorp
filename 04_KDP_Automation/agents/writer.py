@@ -117,6 +117,27 @@ AUDIT_PROMPT = """
 {chapter_text}
 """
 
+OUTLINE_REVIEW_PROMPT = """
+あなたは日本のAmazon KDP市場に精通した辛口の書籍編集者です。
+以下の電子書籍アウトラインを批評し、売れない理由・構成の弱点を指摘してください。
+
+【アウトライン】
+{outline_json}
+
+【批評観点】
+- 章タイトルは読者の購買意欲を刺激するか（具体性・数字・ベネフィットが入っているか）
+- 章の流れに論理的な一貫性があるか（導入→深化→行動の流れ）
+- ターゲット読者の核心的な悩みに正面から応えているか
+- 似たような章が重複していないか
+- 「はじめに」「おわりに」が内容薄になっていないか
+
+以下のJSONのみで返してください：
+{{"pass": true, "issues": [], "suggestions": []}}
+- pass: 概ね良好ならtrue、重大な問題があればfalse
+- issues: 問題点のリスト（各1行）
+- suggestions: 改善提案のリスト（各1行）
+"""
+
 
 # ---------------------------------------------------------------------------
 # プロンプト構築（キャッシュ対象のシステムプロンプト）
@@ -206,6 +227,40 @@ def _build_chapter_user_prompt(
 # 品質監査
 # ---------------------------------------------------------------------------
 
+def review_outline(outline: dict) -> bool:
+    """
+    Haiku でアウトラインを Devil's Advocate 批評する。
+    pass=False の場合は問題点をログ出力して False を返す。
+    """
+    if _client is None:
+        return True
+    prompt = OUTLINE_REVIEW_PROMPT.format(
+        outline_json=json.dumps(outline, ensure_ascii=False, indent=2)
+    )
+    try:
+        response = api_call_with_retry(
+            _client.messages.create,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = next((b.text for b in response.content if b.type == "text"), "")
+        result = parse_json_response(text)
+        if result:
+            issues = result.get("issues", [])
+            suggestions = result.get("suggestions", [])
+            passed = result.get("pass", True)
+            if issues:
+                logging.warning(f"[Devil's Advocate] 問題点: {issues}")
+            if suggestions:
+                logging.info(f"[Devil's Advocate] 改善提案: {suggestions}")
+            return passed
+        return True
+    except Exception as e:
+        logging.warning(f"アウトラインレビュースキップ（エラー）: {e}")
+        return True
+
+
 def audit_chapter(chapter_text: str) -> bool:
     """Haiku で章の品質を自動監査する。pass=False の場合は警告ログを出す。"""
     if _client is None:
@@ -257,8 +312,26 @@ def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
         )
         text = next((b.text for b in response.content if b.type == "text"), "")
         outline = parse_json_response(text)
-        if outline:
-            logging.info(f"アウトライン完成: {len(outline.get('chapters', []))}章構成")
+        if not outline:
+            return None
+
+        logging.info(f"アウトライン完成: {len(outline.get('chapters', []))}章構成")
+
+        # Devil's Advocate レビュー：問題があれば1回再生成
+        if not review_outline(outline):
+            logging.info("アウトラインを改善のため再生成します...")
+            response2 = api_call_with_retry(
+                _client.messages.create,
+                model="claude-sonnet-4-6",
+                max_tokens=4096,
+                messages=[{"role": "user", "content": prompt}],
+            )
+            text2 = next((b.text for b in response2.content if b.type == "text"), "")
+            outline2 = parse_json_response(text2)
+            if outline2:
+                outline = outline2
+                logging.info(f"アウトライン再生成完了: {len(outline.get('chapters', []))}章構成")
+
         return outline
     except Exception as e:
         logging.error(f"アウトライン生成失敗: {e}")

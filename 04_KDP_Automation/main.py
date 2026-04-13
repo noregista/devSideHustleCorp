@@ -235,15 +235,21 @@ def main() -> None:
         except Exception:
             pass
 
+    config = load_config()
+    dry_run = config.get("dry_run", False)
+
     logging.info("=" * 50)
-    logging.info("KDP自動生成パイプライン 開始")
+    if dry_run:
+        logging.info("KDP自動生成パイプライン 開始 [DRY RUN モード]")
+        logging.info("  → API呼び出しは実行するが、ファイル保存・外部投稿はスキップ")
+    else:
+        logging.info("KDP自動生成パイプライン 開始")
     logging.info("=" * 50)
 
     ensure_requirements()
     if not ensure_config():
         sys.exit(1)
 
-    config = load_config()
     if not set_api_key(config):
         sys.exit(1)
 
@@ -300,8 +306,7 @@ def main() -> None:
         sys.exit(1)
     logging.info(f"  → 出力: {output_path}")
 
-    # --- 履歴記録 ---
-    history = load_history()
+    # --- 履歴・外部連携（dry_run 時はスキップ）---
     entry = {
         "generated_at": datetime.now(tz=JST).isoformat(),
         "title": book_data["outline"].get("title", selected.get("title")),
@@ -316,31 +321,39 @@ def main() -> None:
         "published_at": None,
         "price_jpy": kdp_metadata.get("price_jpy"),
     }
-    history.append(entry)
-    save_history(history)
 
-    # --- KDPアップロード情報生成 ---
-    generate_kdp_upload_info(entry, output_path.parent)
+    if dry_run:
+        logging.info("[DRY RUN] book_history.json への書き込みをスキップ")
+        logging.info("[DRY RUN] KDP_upload_info.md の生成をスキップ")
+        logging.info("[DRY RUN] Google Tasks への追加をスキップ")
+    else:
+        # 履歴記録
+        history = load_history()
+        history.append(entry)
+        save_history(history)
 
-    # --- Google Tasks にアップロードTODOを追加 ---
-    try:
-        sys.path.insert(0, str(BASE_DIR.parent / "99_System_Logs"))
-        from google_tasks_sync import get_service, get_or_create_tasklist, sync_tasks
-        gt_service = get_service()
-        gt_tasklist_id = get_or_create_tasklist(gt_service)
-        gt_task = {
-            "title": f"[KDP] アップロード「{entry['title']}」",
-            "notes": f"epub: {output_path.name}\n推奨価格: ¥{kdp_metadata.get('price_jpy', 980)}",
-        }
-        sync_tasks(gt_service, gt_tasklist_id, [gt_task])
-        logging.info("Google Tasks にアップロードTODOを追加しました")
-    except Exception as e:
-        logging.warning(f"Google Tasks追加スキップ: {e}")
+        # KDPアップロード情報生成
+        generate_kdp_upload_info(entry, output_path.parent)
 
-    # --- Threads告知投稿 ---
+        # Google Tasks にアップロードTODOを追加
+        try:
+            sys.path.insert(0, str(BASE_DIR.parent / "99_System_Logs"))
+            from google_tasks_sync import get_service, get_or_create_tasklist, sync_tasks
+            gt_service = get_service()
+            gt_tasklist_id = get_or_create_tasklist(gt_service)
+            gt_task = {
+                "title": f"[KDP] アップロード「{entry['title']}」",
+                "notes": f"epub: {output_path.name}\n推奨価格: ¥{kdp_metadata.get('price_jpy', 980)}",
+            }
+            sync_tasks(gt_service, gt_tasklist_id, [gt_task])
+            logging.info("Google Tasks にアップロードTODOを追加しました")
+        except Exception as e:
+            logging.warning(f"Google Tasks追加スキップ: {e}")
+
+    # --- Threads告知投稿（dry_run=True なら投稿せずログのみ）---
     from agents.threads_notifier import notify as threads_notify
     generation_minutes = max(1, int((datetime.now(tz=JST) - _pipeline_start).total_seconds() / 60))
-    threads_notify(entry, config, generation_minutes=generation_minutes, dry_run=config.get("dry_run", False))
+    threads_notify(entry, config, generation_minutes=generation_minutes, dry_run=dry_run)
 
     logging.info("=" * 50)
     logging.info("✅ パイプライン完了")
