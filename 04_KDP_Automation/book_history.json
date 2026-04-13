@@ -51,5 +51,35 @@
     "asin": null,
     "published_at": null,
     "price_jpy": 980
+  },
+  {
+    "generated_at": "2026-04-13T08:30:02.543696+09:00",
+    "title": "AIに仕事を任せる側になれ｜プロンプトエンジニアリング実戦型ガイド",
+    "author": "桐島 涼太",
+    "genre": "ビジネス/AI活用",
+    "total_chars": 25760,
+    "chapter_count": 8,
+    "epub_path": "/Users/seidai/dev/devSideHustleCorp/04_KDP_Automation/output/20260413_083002_AIに仕事を任せる側になれ｜プロンプトエンジニアリング実戦型ガイド.epub",
+    "kdp_metadata": {
+      "price_jpy": 750,
+      "categories": [
+        "ビジネス・キャリア",
+        "コンピュータ・テクノロジー"
+      ],
+      "keywords": [
+        "ChatGPT 活用",
+        "プロンプトエンジニアリング",
+        "業務効率化",
+        "AI 仕事術",
+        "生成AI 使い方",
+        "業務自動化",
+        "時間短縮"
+      ],
+      "description": "ChatGPT・Claude・Copilotを『命じる側』になるための実践ガイド。業種別・職種別のすぐ使えるプロンプトテンプレ集を100種類以上掲載。手動PC作業から解放され、業務時間を半減させる実装型メソッドで、AI時代の真の生産性向上を実現します。"
+    },
+    "status": "pending_upload",
+    "asin": null,
+    "published_at": null,
+    "price_jpy": 750
   }
 ]
