@@ -222,6 +222,7 @@ python3 record_asin.py B0XXXXXXXXX
 
 def main() -> None:
     setup_file_logging()
+    _pipeline_start = datetime.now(tz=JST)  # パイプライン開始時刻（generation_minutes算出用）
 
     # 一時停止チェック（kdp_pause.json: {"active": true} で停止）
     if KDP_PAUSE_PATH.exists():
@@ -338,7 +339,7 @@ def main() -> None:
 
     # --- Threads告知投稿 ---
     from agents.threads_notifier import notify as threads_notify
-    generation_minutes = int((datetime.now(tz=JST) - datetime.fromisoformat(entry["generated_at"])).total_seconds() / 60) + 1
+    generation_minutes = max(1, int((datetime.now(tz=JST) - _pipeline_start).total_seconds() / 60))
     threads_notify(entry, config, generation_minutes=generation_minutes, dry_run=config.get("dry_run", False))
 
     logging.info("=" * 50)

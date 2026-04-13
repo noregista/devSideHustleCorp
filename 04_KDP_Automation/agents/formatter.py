@@ -25,53 +25,56 @@ OUTPUT_DIR = BASE_DIR / "output"
 JST = timezone(timedelta(hours=9))
 
 
+def _inline_md(s: str) -> str:
+    """インライン要素（太字・斜体）を変換する"""
+    s = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', s)
+    s = re.sub(r'\*(.+?)\*', r'<em>\1</em>', s)
+    return s
+
+
 def _markdown_to_html(text: str) -> str:
-    """簡易Markdown → HTML変換（見出し・段落・箇条書き対応）"""
+    """簡易Markdown → HTML変換（見出し・段落・箇条書き・太字・斜体対応）"""
     lines = text.split("\n")
     html_lines = []
-    in_ul = False
+    list_type: Optional[str] = None  # "ul" or "ol"
+
+    def _close_list() -> None:
+        nonlocal list_type
+        if list_type:
+            html_lines.append(f"</{list_type}>")
+            list_type = None
 
     for line in lines:
         if line.startswith("# "):
-            if in_ul:
-                html_lines.append("</ul>")
-                in_ul = False
-            html_lines.append(f"<h1>{line[2:].strip()}</h1>")
+            _close_list()
+            html_lines.append(f"<h1>{_inline_md(line[2:].strip())}</h1>")
         elif line.startswith("## "):
-            if in_ul:
-                html_lines.append("</ul>")
-                in_ul = False
-            html_lines.append(f"<h2>{line[3:].strip()}</h2>")
+            _close_list()
+            html_lines.append(f"<h2>{_inline_md(line[3:].strip())}</h2>")
         elif line.startswith("### "):
-            if in_ul:
-                html_lines.append("</ul>")
-                in_ul = False
-            html_lines.append(f"<h3>{line[4:].strip()}</h3>")
+            _close_list()
+            html_lines.append(f"<h3>{_inline_md(line[4:].strip())}</h3>")
         elif re.match(r'^[-・]\s', line):
-            if not in_ul:
+            if list_type != "ul":
+                _close_list()
                 html_lines.append("<ul>")
-                in_ul = True
-            html_lines.append(f"<li>{line[2:].strip()}</li>")
+                list_type = "ul"
+            html_lines.append(f"<li>{_inline_md(line[2:].strip())}</li>")
         elif re.match(r'^\d+\.\s', line):
-            if not in_ul:
-                html_lines.append("<ul>")
-                in_ul = True
+            if list_type != "ol":
+                _close_list()
+                html_lines.append("<ol>")
+                list_type = "ol"
             content = re.sub(r'^\d+\.\s', '', line).strip()
-            html_lines.append(f"<li>{content}</li>")
+            html_lines.append(f"<li>{_inline_md(content)}</li>")
         elif line.strip() == "":
-            if in_ul:
-                html_lines.append("</ul>")
-                in_ul = False
+            _close_list()
             html_lines.append("")
         else:
-            if in_ul:
-                html_lines.append("</ul>")
-                in_ul = False
-            html_lines.append(f"<p>{line.strip()}</p>")
+            _close_list()
+            html_lines.append(f"<p>{_inline_md(line.strip())}</p>")
 
-    if in_ul:
-        html_lines.append("</ul>")
-
+    _close_list()
     return "\n".join(html_lines)
 
 
@@ -331,8 +334,10 @@ h1 { font-size: 1.6em; border-bottom: 2px solid #333; padding-bottom: 0.3em; mar
 h2 { font-size: 1.3em; margin-top: 1.5em; color: #1a1a60; }
 h3 { font-size: 1.1em; margin-top: 1.2em; }
 p { text-indent: 1em; margin: 0.5em 0; }
-ul { margin: 0.5em 0 0.5em 2em; }
+ul, ol { margin: 0.5em 0 0.5em 2em; }
 li { margin: 0.3em 0; }
+strong { font-weight: bold; }
+em { font-style: italic; }
 """
     css = epub.EpubItem(uid="style", file_name="style.css", media_type="text/css", content=css_content)
     book.add_item(css)
