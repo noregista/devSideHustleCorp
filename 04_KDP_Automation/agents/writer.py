@@ -37,6 +37,7 @@ except ImportError:
     from utils import api_call_with_retry, parse_json_response  # type: ignore[no-redef]
 
 TARGET_CHARS_PER_CHAPTER = 2000  # 全体2万字目標（8章構成で約2000字/章）
+MIN_CHAPTER_CHARS = 500          # この文字数未満は切断・失敗とみなして再生成
 
 # Batch API ポーリング設定
 BATCH_POLL_INTERVAL = 30   # 30秒ごとにポーリング
@@ -545,12 +546,40 @@ def generate_book(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
             if text:
                 batch_results[spec["custom_id"]] = text
 
-    # 順番通りに整列 + 品質監査
+    # 順番通りに整列 + 品質ガード（最小文字数チェック + audit失敗時に1回再生成）
     chapters_content: list[dict] = []
+    _cached_sys_prompt: Optional[str] = None  # 再生成時に使い回す（キャッシュ継続）
+
     for spec in chapter_specs:
         text = batch_results.get(spec["custom_id"])
+
+        # 最小文字数ガード（未生成・明らかな切断を検出）
+        too_short = (not text) or (len(text) < MIN_CHAPTER_CHARS)
+        # audit チェック（文字数OKの章のみ実行）
+        audit_fail = (not too_short) and (not audit_chapter(text))  # type: ignore[arg-type]
+
+        if too_short or audit_fail:
+            reason = "未生成/切断" if too_short else "品質基準未達"
+            char_count = len(text) if text else 0
+            logging.info(f"{spec['label']} 再生成 ({reason}: {char_count}字 → 単独リトライ)")
+            if _cached_sys_prompt is None:
+                _cached_sys_prompt = _build_system_prompt(
+                    book_title, target_reader, core_problem, outline
+                )
+            retry_text = generate_chapter(
+                book_title=book_title,
+                target_reader=target_reader,
+                core_problem=core_problem,
+                chapter_label=spec["label"],
+                chapter_title=spec["title"],
+                sections=spec["sections"],
+                key_message=spec["key_message"],
+                system_prompt_text=_cached_sys_prompt,
+            )
+            if retry_text:
+                text = retry_text
+
         if text:
-            audit_chapter(text)
             chapters_content.append({
                 "label": spec["label"],
                 "title": spec["title"],

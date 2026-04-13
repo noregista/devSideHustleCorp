@@ -114,6 +114,11 @@ def set_api_key(config: dict) -> bool:
         logging.error("ANTHROPIC_API_KEY が設定されていません。config.json を確認してください。")
         return False
     os.environ["ANTHROPIC_API_KEY"] = key
+    # Gemini フォールバック用キーをセット（config.json から読み込み）
+    gemini_key = os.environ.get("GEMINI_API_KEY") or config.get("gemini_api_key", "")
+    if gemini_key:
+        os.environ["GEMINI_API_KEY"] = gemini_key
+        logging.info("GEMINI_API_KEY セット済み（Overload時フォールバック有効）")
     return True
 
 
@@ -247,7 +252,17 @@ def main() -> None:
     # --- STEP 1: リサーチ ---
     logging.info("[STEP 1/4] トレンドリサーチ開始")
     from agents.researcher import main as researcher_main
-    research_result = researcher_main()
+
+    # 当日のキャッシュが存在する場合は再利用（APIコスト節約）
+    today = datetime.now(tz=JST).strftime("%Y-%m-%d")
+    cache_path = BASE_DIR / "research_cache" / f"{today}.json"
+    if cache_path.exists():
+        logging.info(f"  → 本日のリサーチキャッシュを再利用: {cache_path.name}")
+        with open(cache_path, encoding="utf-8") as f:
+            research_result = json.load(f)
+    else:
+        research_result = researcher_main()
+
     if not research_result or not research_result.get("candidates"):
         logging.error("リサーチ失敗。終了します。")
         sys.exit(1)
