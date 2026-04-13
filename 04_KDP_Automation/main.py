@@ -312,9 +312,10 @@ def main() -> None:
         from google_tasks_sync import get_service, get_or_create_tasklist, sync_tasks
         gt_service = get_service()
         gt_tasklist_id = get_or_create_tasklist(gt_service)
+        gen_date = datetime.now(tz=JST).strftime("%Y-%m-%d")
         gt_task = {
-            "title": f"[KDP] アップロード「{entry['title']}」",
-            "notes": f"epub: {output_path.name}\n推奨価格: ¥{kdp_metadata.get('price_jpy', 980)}",
+            "title": f"[KDP] アップロード｜{entry['title']}（{gen_date}生成）",
+            "notes": f"epub: {output_path.name}\n推奨価格: ¥{kdp_metadata.get('price_jpy', 980)}\nkdp.amazon.co.jp からアップロード後、python3 record_asin.py でASIN記録",
         }
         sync_tasks(gt_service, gt_tasklist_id, [gt_task])
         logging.info("Google Tasks にアップロードTODOを追加しました")
