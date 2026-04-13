@@ -73,6 +73,34 @@
 
 ---
 
+### 2026-04-13〜14
+
+**[失敗] kill_switch + config.json削除で丸一日投稿停止**
+- git pull で `config.json` が削除された（.gitignoreに移行されたため）
+- かつ `kill_switch.json: active: true` のまま放置されていた
+- → セッション開始時に kill_switch と config.json の存在を必ず確認するルールを追加
+
+**[失敗] account_h の混同**
+- account_h はれな→水無月 澪に変更されたが、コード側でれなのキューを水無月 澪として処理しようとした
+- → アカウント操作前に config.json の該当エントリを Read で確認するルールを追加
+
+**[ルール] 作業終了時は必ずプッシュしてからメモを書く**
+- 作業終了の申告を受けても、変更があれば自発的に git push を完了させる
+- プッシュ → メモ更新 → 終了報告の順を守る
+
+**[新機能] account_h（水無月 澪 / @mio.minazuki）追加・初回投稿完了**
+- genre: spiritual、投稿パターン: empathy/insight/note_lead のローテーション
+- spiritual_writer.py を新規作成（RSS不要・Claude APIで直接生成）
+- リプライ必須品質チェックを通すため、全パターンにリプライ生成を追加
+- note URL: https://note.com/mio_minazuki
+
+**[KDP] Google Tasks連携をMacで初回認証完了（2026-04-13）**
+- credentials: `99_System_Logs/google_credentials.json`（gitignore）
+- token: `99_System_Logs/google_token.json`（gitignore）
+- Macで再認証が必要な場合: `cd 99_System_Logs && python3 google_tasks_sync.py`
+
+---
+
 ## 合成ログ（週次レビュー時に記入）
 
 *まだ合成なし — 2026-04-11 観察開始*
