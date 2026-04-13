@@ -4,6 +4,11 @@ agents/writer.py
 選定されたテーマをもとに電子書籍の本文を生成する。
 トークン制限を避けるため「アウトライン生成 → 章ごとに分割生成」の2ステップ方式。
 
+最適化:
+- Anthropic Batch API: アウトライン確定後、全章を並列バッチ送信（50%コスト削減）
+- Prompt Caching: システムプロンプト（書籍情報+全アウトライン+執筆ルール）をキャッシュ化
+  → 8章中7章がキャッシュヒット（読み取りコスト 1/10）
+
 使用モデル: claude-sonnet-4-6（品質重視）
 """
 
@@ -12,6 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any, Optional
 
@@ -31,6 +37,11 @@ except ImportError:
     from utils import api_call_with_retry, parse_json_response  # type: ignore[no-redef]
 
 TARGET_CHARS_PER_CHAPTER = 2000  # 全体2万字目標（8章構成で約2000字/章）
+
+# Batch API ポーリング設定
+BATCH_POLL_INTERVAL = 30   # 30秒ごとにポーリング
+BATCH_MAX_WAIT = 7200      # 最大2時間待機（通常は数分で完了）
+
 OUTLINE_PROMPT = """
 あなたは日本のベストセラー実用書ライターです。
 以下のテーマで電子書籍のアウトラインを作成してください。
@@ -76,40 +87,6 @@ OUTLINE_PROMPT = """
 }}
 """
 
-CHAPTER_PROMPT = """
-あなたは日本のベストセラー実用書ライターです。
-以下の仕様で電子書籍の1章分を執筆してください。
-
-【書籍情報】
-タイトル: {book_title}
-ターゲット読者: {target_reader}
-解決する課題: {core_problem}
-
-【この章の情報】
-章番号: {chapter_label}
-章タイトル: {chapter_title}
-節構成: {sections}
-この章で伝えたいこと: {key_message}
-
-【執筆ルール】
-- 文字数: {target_chars}字程度
-- 読者に語りかける親しみやすい文体（です・ます調）
-- 具体的なエピソード・例・数字を積極的に使う
-- 各節は見出し（## 節タイトル）で区切る
-- 難しい専門用語は使わず、中学生でもわかる言葉で書く
-- 読者が「自分のことだ」と感じる共感ポイントを必ず入れる
-- 章末に「まとめ」を入れる（箇条書き3〜5点）
-- まとめの後に「今すぐできるアクション」を追加する（読者が今日から実践できる具体的な手順を箇条書き3〜5項目）
-
-【E-A-T品質基準（必須）】
-- 専門性（Expertise）: 各節に具体的な数値・事例・手順を1つ以上入れる
-- 権威性（Authoritativeness）: 「〜という研究では」「〜の調査によると」など根拠を示す表現を使う
-- 信頼性（Trustworthiness）: 「うまくいかないケース」や「注意点」も正直に書き、読者への誠実さを示す
-
-本文のみ返してください（JSONではなく、そのままのテキスト）。
-章タイトルは「# {chapter_title}」の形式で始めること。
-"""
-
 SERIES_LINK_TEMPLATE = """
 
 ---
@@ -140,6 +117,94 @@ AUDIT_PROMPT = """
 """
 
 
+# ---------------------------------------------------------------------------
+# プロンプト構築（キャッシュ対象のシステムプロンプト）
+# ---------------------------------------------------------------------------
+
+def _build_system_prompt(
+    book_title: str,
+    target_reader: str,
+    core_problem: str,
+    outline: dict,
+) -> str:
+    """
+    章生成用システムプロンプトを構築する。
+    全章で共通の内容（書籍情報 + 全アウトライン + 執筆ルール）を含み、
+    Prompt Caching の対象（1024トークン以上）になるよう設計。
+    """
+    chapters_summary = json.dumps(
+        {
+            "introduction": outline.get("introduction", {}),
+            "chapters": outline.get("chapters", []),
+            "conclusion": outline.get("conclusion", {}),
+        },
+        ensure_ascii=False,
+        indent=2,
+    )
+    return f"""あなたは日本のベストセラー実用書ライターです。
+これから執筆する書籍の全体像と執筆ルールを以下に示します。各章の執筆指示はユーザーメッセージで送ります。
+
+【書籍情報】
+タイトル: {book_title}
+ターゲット読者: {target_reader}
+解決する課題: {core_problem}
+
+【書籍アウトライン（全体構成）】
+{chapters_summary}
+
+【執筆ルール（全章共通）】
+- 文字数: {TARGET_CHARS_PER_CHAPTER}字程度
+- 読者に語りかける親しみやすい文体（です・ます調）
+- 具体的なエピソード・例・数字を積極的に使う
+- 各節は見出し（## 節タイトル）で区切る
+- 難しい専門用語は使わず、中学生でもわかる言葉で書く
+- 読者が「自分のことだ」と感じる共感ポイントを必ず入れる
+- 章末に「まとめ」を入れる（箇条書き3〜5点）
+- まとめの後に「今すぐできるアクション」を追加する（読者が今日から実践できる具体的な手順を箇条書き3〜5項目）
+- 章の冒頭は「# 章タイトル」の形式で始めること
+- 段落は3〜5文を目安にする（一文は60字以内）
+- 具体例は「たとえば〜」「実際に〜」「ある〜の場合〜」のような導入を使う
+- 各節の終わりに「つまり〜」「要するに〜」でまとめを入れると読者が理解しやすい
+
+【E-A-T品質基準（必須）】
+
+専門性（Expertise）:
+- 各節に具体的な数値・事例・手順を1つ以上必ず含める
+- 抽象的な説明だけで終わらず、「具体的に何をするか」を明示する
+- 読者が「実際にできる」と感じる粒度で書く
+
+権威性（Authoritativeness）:
+- 「〜という研究では」「〜の調査によると」「〜の統計では」など根拠を示す表現を積極的に使う
+- 信頼できる情報源（厚生労働省、総務省、主要企業の調査など）への言及を含める
+- 専門家の知見や実績のある手法を引用する
+
+信頼性（Trustworthiness）:
+- 「うまくいかないケース」や「注意点」「よくある失敗」も正直に書く
+- 過剰な約束をせず、現実的な期待値を設定する
+- 「〜の場合は効果が限定的です」など、適切な留保を入れる
+
+本文のみ返してください（JSONではなく、そのままのテキスト）。"""
+
+
+def _build_chapter_user_prompt(
+    chapter_label: str,
+    chapter_title: str,
+    sections: list[str],
+    key_message: str,
+) -> str:
+    """章固有のユーザープロンプト（短い・非キャッシュ）"""
+    return f"""以下の章を執筆してください：
+
+章番号: {chapter_label}
+章タイトル: {chapter_title}
+節構成: {' 、'.join(sections)}
+この章で伝えたいこと: {key_message}"""
+
+
+# ---------------------------------------------------------------------------
+# 品質監査
+# ---------------------------------------------------------------------------
+
 def audit_chapter(chapter_text: str) -> bool:
     """Haiku で章の品質を自動監査する。pass=False の場合は警告ログを出す。"""
     if _client is None:
@@ -163,6 +228,10 @@ def audit_chapter(chapter_text: str) -> bool:
         logging.warning(f"品質監査スキップ（エラー）: {e}")
         return True
 
+
+# ---------------------------------------------------------------------------
+# アウトライン生成
+# ---------------------------------------------------------------------------
 
 def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
     if _client is None:
@@ -195,6 +264,111 @@ def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
         return None
 
 
+# ---------------------------------------------------------------------------
+# Batch API による全章一括生成（メインフロー）
+# ---------------------------------------------------------------------------
+
+def generate_chapters_batch(
+    book_title: str,
+    target_reader: str,
+    core_problem: str,
+    outline: dict,
+    chapter_specs: list[dict],
+) -> dict[str, Optional[str]]:
+    """
+    Anthropic Batch API で全章を一括生成する（50%コスト削減）。
+    システムプロンプトに cache_control を付与し、2章目以降はキャッシュヒット。
+
+    chapter_specs: [{"custom_id": str, "label": str, "title": str,
+                     "sections": list, "key_message": str}]
+    戻り値: {custom_id: chapter_text or None}
+    """
+    if _client is None:
+        return {}
+
+    system_prompt_text = _build_system_prompt(book_title, target_reader, core_problem, outline)
+
+    # システムプロンプトはキャッシュ対象（ephemeral）
+    system_block = [
+        {
+            "type": "text",
+            "text": system_prompt_text,
+            "cache_control": {"type": "ephemeral"},
+        }
+    ]
+
+    requests = []
+    for spec in chapter_specs:
+        user_content = _build_chapter_user_prompt(
+            spec["label"], spec["title"], spec["sections"], spec["key_message"]
+        )
+        requests.append({
+            "custom_id": spec["custom_id"],
+            "params": {
+                "model": "claude-sonnet-4-6",
+                "max_tokens": 4096,
+                "system": system_block,
+                "messages": [{"role": "user", "content": user_content}],
+            },
+        })
+
+    logging.info(f"Batch API 送信: {len(requests)}章を一括生成（prompt_caching 有効）...")
+    try:
+        batch = _client.messages.batches.create(requests=requests)
+        batch_id = batch.id
+        logging.info(f"Batch送信完了: ID={batch_id}")
+    except Exception as e:
+        logging.error(f"Batch送信失敗: {e}")
+        return {}
+
+    # ポーリング（処理完了まで待機）
+    waited = 0
+    while waited < BATCH_MAX_WAIT:
+        time.sleep(BATCH_POLL_INTERVAL)
+        waited += BATCH_POLL_INTERVAL
+        try:
+            batch = _client.messages.batches.retrieve(batch_id)
+            counts = batch.request_counts
+            logging.info(
+                f"Batch状態: {batch.processing_status} "
+                f"({waited}s経過) 完了:{counts.succeeded} "
+                f"処理中:{counts.processing} エラー:{counts.errored}"
+            )
+            if batch.processing_status == "ended":
+                break
+        except Exception as e:
+            logging.warning(f"Batchポーリングエラー: {e}")
+
+    if batch.processing_status != "ended":
+        logging.error(f"Batchタイムアウト: {BATCH_MAX_WAIT}秒を超えました")
+        return {}
+
+    # 結果収集
+    results: dict[str, Optional[str]] = {}
+    try:
+        for result in _client.messages.batches.results(batch_id):
+            cid = result.custom_id
+            if result.result.type == "succeeded":
+                text = next(
+                    (b.text for b in result.result.message.content if b.type == "text"),
+                    None,
+                )
+                results[cid] = text.strip() if text else None
+            else:
+                logging.warning(f"Batch章生成失敗 [{cid}]: {result.result.type}")
+                results[cid] = None
+    except Exception as e:
+        logging.error(f"Batch結果取得失敗: {e}")
+
+    succeeded = sum(1 for v in results.values() if v)
+    logging.info(f"Batch完了: {succeeded}/{len(requests)}章 生成成功")
+    return results
+
+
+# ---------------------------------------------------------------------------
+# 単章生成（Batch失敗時のフォールバック）
+# ---------------------------------------------------------------------------
+
 def generate_chapter(
     book_title: str,
     target_reader: str,
@@ -203,37 +377,62 @@ def generate_chapter(
     chapter_title: str,
     sections: list[str],
     key_message: str,
+    system_prompt_text: Optional[str] = None,
 ) -> Optional[str]:
+    """
+    1章分を単独生成する（Batch API失敗時のフォールバック）。
+    system_prompt_text が渡された場合はキャッシュ対象のシステムプロンプトを使用。
+    """
     if _client is None:
         return None
 
-    prompt = CHAPTER_PROMPT.format(
-        book_title=book_title,
-        target_reader=target_reader,
-        core_problem=core_problem,
-        chapter_label=chapter_label,
-        chapter_title=chapter_title,
-        sections="、".join(sections),
-        key_message=key_message,
-        target_chars=TARGET_CHARS_PER_CHAPTER,
+    user_content = _build_chapter_user_prompt(
+        chapter_label, chapter_title, sections, key_message
     )
 
     try:
-        response = api_call_with_retry(
-            _client.messages.create,
-            model="claude-sonnet-4-6",
-            max_tokens=4096,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        if system_prompt_text:
+            # キャッシュ有効: システムプロンプト + 短いユーザープロンプト
+            response = api_call_with_retry(
+                _client.messages.create,
+                model="claude-sonnet-4-6",
+                max_tokens=4096,
+                system=[
+                    {
+                        "type": "text",
+                        "text": system_prompt_text,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": user_content}],
+            )
+        else:
+            # フォールバック: 従来の単一プロンプト方式
+            legacy_prompt = f"""あなたは日本のベストセラー実用書ライターです。
+書籍「{book_title}」の{chapter_label}「{chapter_title}」を執筆してください。
+節構成: {'、'.join(sections)}
+伝えたいこと: {key_message}
+文字数: {TARGET_CHARS_PER_CHAPTER}字程度。章末に「まとめ」と「今すぐできるアクション」を追加。
+本文のみ返してください。章タイトルは「# {chapter_title}」で始めること。"""
+            response = api_call_with_retry(
+                _client.messages.create,
+                model="claude-sonnet-4-6",
+                max_tokens=4096,
+                messages=[{"role": "user", "content": legacy_prompt}],
+            )
+
         text = next((b.text for b in response.content if b.type == "text"), "")
         chapter_text = text.strip()
-        # Auto-Auditing: 品質チェック（警告ログのみ、ブロックはしない）
         audit_chapter(chapter_text)
         return chapter_text
     except Exception as e:
         logging.error(f"章生成失敗 [{chapter_label}]: {e}")
         return None
 
+
+# ---------------------------------------------------------------------------
+# 巻末シリーズリンク
+# ---------------------------------------------------------------------------
 
 def _build_series_link_section(current_title: str, author: str) -> str:
     """book_history.jsonから既刊（published/submitted）を読み込み巻末リンクセクションを生成する"""
@@ -270,6 +469,10 @@ def _build_series_link_section(current_title: str, author: str) -> str:
     )
 
 
+# ---------------------------------------------------------------------------
+# メインオーケストレーション
+# ---------------------------------------------------------------------------
+
 def generate_book(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
     logging.info("=== writer 開始 ===")
 
@@ -281,53 +484,78 @@ def generate_book(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
     book_title = outline.get("title", candidate.get("title", ""))
     target_reader = candidate.get("target_reader", "")
     core_problem = candidate.get("core_problem", "")
-    chapters_content: list[dict] = []
 
-    # はじめに
+    # 全章のスペックをリスト化（順番を保持）
     intro = outline.get("introduction", {})
-    logging.info("「はじめに」生成中...")
-    intro_text = generate_chapter(
-        book_title=book_title,
-        target_reader=target_reader,
-        core_problem=core_problem,
-        chapter_label="はじめに",
-        chapter_title=intro.get("title", "はじめに"),
-        sections=intro.get("sections", []),
-        key_message=intro.get("key_message", ""),
-    )
-    if intro_text:
-        chapters_content.append({"label": "はじめに", "title": intro.get("title", "はじめに"), "content": intro_text})
-
-    # 本編各章
-    for ch in outline.get("chapters", []):
-        label = f"第{ch['number']}章"
-        logging.info(f"{label}「{ch['title']}」生成中...")
-        text = generate_chapter(
-            book_title=book_title,
-            target_reader=target_reader,
-            core_problem=core_problem,
-            chapter_label=label,
-            chapter_title=ch["title"],
-            sections=ch.get("sections", []),
-            key_message=ch.get("key_message", ""),
-        )
-        if text:
-            chapters_content.append({"label": label, "title": ch["title"], "content": text})
-
-    # おわりに
     conclusion = outline.get("conclusion", {})
-    logging.info("「おわりに」生成中...")
-    conclusion_text = generate_chapter(
+
+    chapter_specs: list[dict] = []
+    chapter_specs.append({
+        "custom_id": "intro",
+        "label": "はじめに",
+        "title": intro.get("title", "はじめに"),
+        "sections": intro.get("sections", []),
+        "key_message": intro.get("key_message", ""),
+    })
+    for ch in outline.get("chapters", []):
+        chapter_specs.append({
+            "custom_id": f"ch_{ch['number']}",
+            "label": f"第{ch['number']}章",
+            "title": ch["title"],
+            "sections": ch.get("sections", []),
+            "key_message": ch.get("key_message", ""),
+        })
+    chapter_specs.append({
+        "custom_id": "conclusion",
+        "label": "おわりに",
+        "title": conclusion.get("title", "おわりに"),
+        "sections": conclusion.get("sections", []),
+        "key_message": conclusion.get("key_message", ""),
+    })
+
+    total_chapters = len(chapter_specs)
+    logging.info(f"Batch API で {total_chapters}章を一括送信中...")
+
+    # ── メインフロー: Batch API（50%コスト削減 + Prompt Caching）──
+    batch_results = generate_chapters_batch(
         book_title=book_title,
         target_reader=target_reader,
         core_problem=core_problem,
-        chapter_label="おわりに",
-        chapter_title=conclusion.get("title", "おわりに"),
-        sections=conclusion.get("sections", []),
-        key_message=conclusion.get("key_message", ""),
+        outline=outline,
+        chapter_specs=chapter_specs,
     )
-    if conclusion_text:
-        chapters_content.append({"label": "おわりに", "title": conclusion.get("title", "おわりに"), "content": conclusion_text})
+
+    # ── フォールバック: Batch失敗時はシーケンシャル生成 ──
+    if not batch_results:
+        logging.warning("Batch API失敗 → シーケンシャル生成にフォールバック（Prompt Caching継続）")
+        system_prompt_text = _build_system_prompt(book_title, target_reader, core_problem, outline)
+        batch_results = {}
+        for spec in chapter_specs:
+            logging.info(f"{spec['label']}「{spec['title']}」生成中...")
+            text = generate_chapter(
+                book_title=book_title,
+                target_reader=target_reader,
+                core_problem=core_problem,
+                chapter_label=spec["label"],
+                chapter_title=spec["title"],
+                sections=spec["sections"],
+                key_message=spec["key_message"],
+                system_prompt_text=system_prompt_text,
+            )
+            if text:
+                batch_results[spec["custom_id"]] = text
+
+    # 順番通りに整列 + 品質監査
+    chapters_content: list[dict] = []
+    for spec in chapter_specs:
+        text = batch_results.get(spec["custom_id"])
+        if text:
+            audit_chapter(text)
+            chapters_content.append({
+                "label": spec["label"],
+                "title": spec["title"],
+                "content": text,
+            })
 
     total_chars = sum(len(c["content"]) for c in chapters_content)
     logging.info(f"本文生成完了: {len(chapters_content)}章 / 合計{total_chars:,}字")
