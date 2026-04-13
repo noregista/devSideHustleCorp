@@ -47,20 +47,25 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 
 # トレンド収集に使うRSSソース（ジャンル別）
 RSS_SOURCES = [
-    # ビジネス・マネー
+    # ビジネス・マネー（日本語）
     "https://toyokeizai.net/list/feed/rss",
     "https://diamond.jp/list/feed/rss",
-    # テクノロジー・AI
+    # テクノロジー・AI（日本語）
     "https://rss.itmedia.co.jp/rss/2.0/aiplus.xml",
     "https://rss.itmedia.co.jp/rss/2.0/itmediabusiness.xml",
-    # ライフスタイル・健康
+    # ライフスタイル・健康（日本語）
     "https://news.yahoo.co.jp/rss/topics/life.xml",
-    # 総合ニュース
+    # 総合ニュース（日本語）
     "https://news.yahoo.co.jp/rss/topics/top-picks.xml",
+    # 国際トレンド先行検知（英語・Reddit）
+    # 日本より数ヶ月早くトレンドが発生する英語圏の動向を取得
+    "https://www.reddit.com/r/selfpublishing/hot.rss",     # 自費出版トレンド
+    "https://www.reddit.com/r/Entrepreneur/hot.rss",       # 起業・副業トレンド
+    "https://www.reddit.com/r/productivity/hot.rss",       # 生産性・効率化トレンド
 ]
 
 MAX_ARTICLES_PER_SOURCE = 10  # 1ソースあたり最大取得件数
-MAX_TOTAL_ARTICLES = 40       # Claudeに渡す記事数の上限
+MAX_TOTAL_ARTICLES = 50       # Claudeに渡す記事数の上限（ソース増加に伴い拡大）
 
 
 def setup_file_logging() -> None:
@@ -150,6 +155,7 @@ RESEARCH_PROMPT = """
 以下は現在（{date}）の日本のトレンドニュース・記事タイトルの一覧です。
 
 【今日のトレンド記事タイトル（実データ）】
+※日本語メディア + 英語圏Reddit（国際トレンドの先行検知用）を含む
 {trending_titles}
 
 【既刊・生成済みタイトル（重複禁止）】

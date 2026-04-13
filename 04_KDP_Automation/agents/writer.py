@@ -9,7 +9,10 @@ agents/writer.py
 - Prompt Caching: システムプロンプト（書籍情報+全アウトライン+執筆ルール）をキャッシュ化
   → 8章中7章がキャッシュヒット（読み取りコスト 1/10）
 
-使用モデル: claude-sonnet-4-6（品質重視）
+使用モデル:
+- アウトライン生成: claude-opus-4-6（最高品質・2026年2月に67%値下げ済み）
+- 章生成: claude-sonnet-4-6（Batch API + Prompt Caching）
+- 品質監査・AI臭さ除去: claude-haiku-4-5-20251001（コスト最小）
 """
 
 from __future__ import annotations
@@ -112,6 +115,28 @@ AUDIT_PROMPT = """
 
 以下のJSONのみで返してください：
 {{"pass": true, "issues": []}}
+
+---
+{chapter_text}
+"""
+
+NATURALIZE_PROMPT = """
+以下の文章に含まれるAI生成特有の不自然な表現を、自然な日本語に修正してください。
+
+【修正対象パターン】
+- 「様々な」「多岐にわたる」→ 具体的な内容か「多くの」に
+- 「〜することが重要です」→ 「〜しましょう」「〜が効きます」など直接的に
+- 「〜といえるでしょう」「〜と考えられます」→ 断言できる場合は断言
+- 「〜を実現することができます」→ 「〜できます」に短縮
+- 「まず〜次に〜最後に〜」の機械的な羅列 → 自然な文章の流れに
+- 一文が80字を超える場合 → 分割
+- 「非常に」「とても」「特に」の連続使用 → 1箇所に絞る
+
+【守るべきこと】
+- 「です・ます調」は維持する
+- 見出し（# ##）・箇条書き（-）の構造は変えない
+- 内容・情報は一切削らない
+- 修正後の文章のみ返す（説明不要）
 
 ---
 {chapter_text}
@@ -227,6 +252,40 @@ def _build_chapter_user_prompt(
 # 品質監査
 # ---------------------------------------------------------------------------
 
+def naturalize_chapter(chapter_text: str) -> str:
+    """
+    Haiku でAI臭さを除去する（記事執筆者の「AI臭さ除去リライト」手法を採用）。
+    「様々な」「〜することが重要です」などの定型表現を自然な日本語に変換。
+    失敗時は元のテキストをそのまま返す。
+    """
+    if _client is None or not chapter_text:
+        return chapter_text
+    # 長すぎる章は前後半に分けて処理
+    if len(chapter_text) > 3000:
+        mid = len(chapter_text) // 2
+        # 段落境界で分割
+        split = chapter_text.rfind("\n\n", 0, mid + 200)
+        if split == -1:
+            split = mid
+        first = naturalize_chapter(chapter_text[:split])
+        second = naturalize_chapter(chapter_text[split:])
+        return first + second
+
+    prompt = NATURALIZE_PROMPT.format(chapter_text=chapter_text)
+    try:
+        response = api_call_with_retry(
+            _client.messages.create,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        result = next((b.text for b in response.content if b.type == "text"), "")
+        return result.strip() if result.strip() else chapter_text
+    except Exception as e:
+        logging.warning(f"AI臭さ除去スキップ（エラー）: {e}")
+        return chapter_text
+
+
 def review_outline(outline: dict) -> bool:
     """
     Haiku でアウトラインを Devil's Advocate 批評する。
@@ -304,9 +363,10 @@ def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
 
     logging.info("アウトライン生成中...")
     try:
+        # アウトライン生成は Opus 4.6（最高品質・2026年2月に67%値下げ済み）
         response = api_call_with_retry(
             _client.messages.create,
-            model="claude-sonnet-4-6",
+            model="claude-opus-4-6",
             max_tokens=4096,
             messages=[{"role": "user", "content": prompt}],
         )
@@ -317,12 +377,12 @@ def generate_outline(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
 
         logging.info(f"アウトライン完成: {len(outline.get('chapters', []))}章構成")
 
-        # Devil's Advocate レビュー：問題があれば1回再生成
+        # Devil's Advocate レビュー：問題があれば1回再生成（Opusで）
         if not review_outline(outline):
             logging.info("アウトラインを改善のため再生成します...")
             response2 = api_call_with_retry(
                 _client.messages.create,
-                model="claude-sonnet-4-6",
+                model="claude-opus-4-6",
                 max_tokens=4096,
                 messages=[{"role": "user", "content": prompt}],
             )
@@ -653,6 +713,8 @@ def generate_book(candidate: dict, chapter_count: int = 6) -> Optional[dict]:
                 text = retry_text
 
         if text:
+            # AI臭さ除去（自然な日本語に変換）
+            text = naturalize_chapter(text)
             chapters_content.append({
                 "label": spec["label"],
                 "title": spec["title"],
