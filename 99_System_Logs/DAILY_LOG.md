@@ -90,5 +90,6 @@
 ### その他メモ
 - poster.pyに潜在バグあり（url=Noneの衝突）。スピリチュアル2アカウント目追加前に要修正。memory記録済み
 - Mac自動pull設定を記憶に追加（run_with_pull.shが毎回pullするため手動pull不要）
+- bypassPermissions モード有効化・「チェックを求めない」記憶追加（次回から承認・確認不要）
 
 ---

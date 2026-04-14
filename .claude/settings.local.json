@@ -1,5 +1,6 @@
 {
   "permissions": {
+    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(claude --version)",
       "Bash(claude login:*)",
@@ -34,7 +35,13 @@
       "Bash(git -C \"C:/dev/devSideHustleCorp\" commit -m \"[threads_bot] サブモジュール更新: sync scripts追加\")",
       "Bash(gh repo:*)",
       "Bash(git -C \"C:/dev/devSideHustleCorp\" add .gitmodules)",
-      "Bash(git -C \"C:/dev/devSideHustleCorp\" commit -m \"[init] サブモジュールURLをSSHに変更\")"
+      "Bash(git -C \"C:/dev/devSideHustleCorp\" commit -m \"[init] サブモジュールURLをSSHに変更\")",
+      "Bash(git rebase:*)",
+      "Bash(git stash:*)",
+      "Bash(git merge:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git submodule:*)"
     ]
   }
 }
