@@ -49,7 +49,7 @@
 | ✅ 完了 | Mac側で git pull して最新コードを反映 | 2026-04-12 | fal.ai表紙生成・KDP_upload_info.md自動生成を有効化 |
 | ✅ 完了 | ASIN記録（販売開始後） | 2026-04-15 | ASIN: B0GX2VQJPC。`python3 record_asin.py B0GX2VQJPC` をMacで実行すること |
 | ✅ 完了 | KDPセレクト登録 | 2026-04-15 | Kindle Unlimited 対象・KENP収益発生開始 |
-| ⬜ 未着手 | 著者セントラル登録 | 急ぎ | authorcentral.amazon.co.jp で登録 → 著者プロフィール・写真・略歴を設定 |
+| ✅ 完了 | 著者セントラル登録 | 2026-04-15 | 著者ページ公開済み・本の紐付け完了 |
 | ⬜ 未着手 | Amazon広告（AMS）開始 | 任意 | オート＋マニュアル併用。初期予算¥500/日 |
 | ✅ 完了 | 40代からの資産形成戦略 の出版判断 | 2026-04-12 | 出版しない決定。book_history.json: cancelled |
 | ⬜ 未着手 | 第2回出版（次の日曜自動生成分） | 2026-04-19 | Macで自動実行予定 |
