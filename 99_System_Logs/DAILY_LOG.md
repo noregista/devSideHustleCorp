@@ -79,17 +79,19 @@
 
 ### 翌日の優先タスク
 - れなのMeta審査が通ったら: 新アプリ（ID: 1422148273258080）で短期トークン発行 → config.jsonに追加
-- KDP初回本の販売開始確認（審査から72時間経過済み）→ ASIN判明次第 `python3 record_asin.py B0XXXXXXXXX`
-- KDPセレクト登録・著者セントラル登録
+- 第2回出版（AIに仕事を任せる側になれ）のアップロード → オーナーが完了次第報告
+- れなのMeta審査通過後: 新アプリでトークン発行 → config.jsonに追加
 
 ### 数値
 - Threads稼働アカウント: 4（C/D/E/H=澪）+ れな審査待ち
 - スピリチュアルパイプライン: 稼働開始（初投稿済み）
-- git commits（本日）: 4件
+- git commits（本日）: 7件
 
 ### その他メモ
 - poster.pyに潜在バグあり（url=Noneの衝突）。スピリチュアル2アカウント目追加前に要修正。memory記録済み
 - Mac自動pull設定を記憶に追加（run_with_pull.shが毎回pullするため手動pull不要）
 - bypassPermissions モード有効化・「チェックを求めない」記憶追加（次回から承認・確認不要）
+- KDP初回本 販売開始・ASIN: B0GX2VQJPC・KDPセレクト登録・著者セントラル登録 完了
+- Google Tasks完了処理をWindows側から直接実行できるようにした
 
 ---
