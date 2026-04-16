@@ -101,6 +101,31 @@
 
 ---
 
+### 2026-04-16
+
+**[整理] アカウントIDをa〜eに統一**
+- 旧: account_c=けんた, account_d=みか, account_e=ゆい, account_g=れな, account_h=澪
+- 新: account_a=けんた, account_b=みか, account_c=ゆい, account_d=れな, account_e=澪
+- 対象: config.json / post_history.json / post_queue.json / engagement_insights.json / pre_post_checker.py
+
+**[失敗] 朝枠の投稿が2アカウントスキップされた**
+- researcher が RSS 遅延で15分かかり（lifehacker.jp）、poster 開始が 08:57 にずれ込んだ
+- みかの Threads API がレートリミットでリトライし27分かかった（08:57→09:24）
+- 09:31 にけんた・ゆいの post_times ±30分窓が閉じていてスキップ
+- → poster.py の窓を ±30分 → ±90分 に拡大して修正
+
+**[整理] LaunchAgent を大幅整理**
+- com.game_news_bot（14回起動）→ com.seidai.threads_bot（3回: 07:30/11:30/20:30）に変更
+- com.gamenewsbot.* 10個（room_tour / auto_retry 等）を全削除
+- com.devSideHustleCorp.threads_main（main.py）が run.sh と重複投稿していた → 削除
+- 現在稼働: com.seidai.threads_bot のみ
+
+**[設計] 澪（spiritual_writer）の投稿を1日2回に変更**
+- 1日1件制限 → 1日2件（朝07:30起動・夜20:30起動で各1件生成）
+- post_times: ['08:50', '21:00']（昼枠は削除）
+
+---
+
 ## 合成ログ（週次レビュー時に記入）
 
 *まだ合成なし — 2026-04-11 観察開始*
