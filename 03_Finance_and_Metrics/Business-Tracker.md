@@ -65,6 +65,7 @@
 | ✅ 完了 | KeepaProvider・MockProvider 実装（切替方式） | 2026-06 | |
 | ✅ 完了 | GitHub remoteリポジトリ作成・push | 2026-06-09 | https://github.com/noregista/furniture-layout-simulator (private) |
 | ✅ 完了 | Priority-A UI改善: インテリアデザイン感強化 | 2026-06-10 | 家具ビジュアル・サンプル6点・ShoppingList・ヒーロー刷新。E2E 13/13 pass |
+| ✅ 完了 | Priority-A追加: 家具リアリティ・キャンバス質感向上 | 2026-06-10 | bed/desk/chair/rug等の家具マーカー全面刷新、選択枠を上品に、壁・グリッド・床をsofterに、サンプルレイアウト再構成、ヒーロー差し替え。E2E 13/13 pass |
 | ⬜ 未着手 | 匿名共有URL機能 | 次回優先 | レイアウトをURLで共有できるようにする |
 | ⬜ 未着手 | 簡易3Dプレビュー | 共有URL後 | Three.js等で2D→3D切替 |
 | ⚠️ リリース前必須 | **Keepa API検証**（Amazon.co.jp 家具30〜50件） | リリース前 | 商品名・画像URL・本体寸法・梱包寸法・価格の取得率を記録。€19/月課金後に実施 |
@@ -96,6 +97,7 @@
 
 ## 直近の完了事項（直近30日）
 
+- 2026-06-10: Priority-A追加対応完了 — 「AI生成っぽいテンプレ感」解消のため、bed/desk/chair/rug等の家具マーカーをディテール刷新（特にchairは放射状ラインのX字見えを修正、rugは縁取り+中央メダリオンに変更）、選択枠を上品なテラコッタグローに、キャンバス(壁・グリッド・床・窓ドア表示)をsofterに、サンプルレイアウトを非重複の「住みたくなる」配置に再構成、ヒーローモックアップ全面差し替え。E2E 13/13 pass
 - 2026-06-10: Priority-A UI改善完了 — 家具ビジュアル(cornerRadius・シャドウ・選択枠)、サンプル部屋6点化(収納棚・テレビ台・ラグ・デスク・チェア追加)、インテリアリスト見出し、ヒーローモックアップ刷新。E2E 13/13 pass
 - 2026-06-09: 家具レイアウトシミュレーター GitHub push完了 (https://github.com/noregista/furniture-layout-simulator) — MVP Day1〜7・E2E 10/10・README整備
 
