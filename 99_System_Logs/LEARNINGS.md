@@ -188,6 +188,28 @@
 
 ---
 
+### 2026-06-11
+
+**[実装] 簡易3Dプレビューを箱型(BoxGeometry)で実装、RoomViewer(2D)と同じ「store非依存・汎用props」設計を踏襲**
+- `@react-three/fiber`+`@react-three/drei`+`three`はpackage.jsonに以前から入っていたが未使用だった
+- 2D編集データ(cm単位、原点=左上、+y=下)→Three.jsワールド座標(m単位、部屋中心が原点、+Y=上)の変換を
+  `apps/web/src/lib/three/coords.ts`に集約。家具は底面が床(y=0)に接するよう中心yを高さの半分に設定
+- Room3DSceneはRoomViewer同様に`{ widthCm, depthCm, items: [...] }`等のpropsのみで動く汎用コンポーネントにしたため、
+  将来`/share`ページに3D対応を追加する際もコンポーネントの修正なしで再利用できる
+
+**[確認] headless Playwright(chromium)でもWebGL(react-three-fiber)は実際にレンダリングされる**
+- `[.WebGL-...]GL Driver Message ... GPU stall due to ReadPixels`という非致命的な警告は出るが、
+  `room-3d-canvas`は実際に3D描画され、OrbitControlsのドラッグ操作も機能した(エラーフォールバックには落ちなかった)
+- E2Eでは`[data-testid="room-3d-canvas"], [data-testid="room-3d-error"]`のいずれかが表示されればpass、
+  という両対応セレクタにしておくと、WebGL利用可否が異なる実行環境でも安定する
+
+**[構造] `scripts/`ディレクトリはpnpmワークスペース外。tsx実行は`./node_modules/.bin/tsx`を直接呼ぶ**
+- `pnpm-workspace.yaml`は`packages: ["apps/*", "packages/*"]`のみで`scripts/`(`@fls/scripts`)を含まない
+- `npx tsx`や`pnpm --filter @fls/scripts exec tsx`はどちらも失敗する
+- `scripts/`配下には独自の`node_modules`があるため、`cd scripts && ./node_modules/.bin/tsx <file>.ts`で実行する
+
+---
+
 ## 合成ログ（週次レビュー時に記入）
 
 *まだ合成なし — 2026-04-11 観察開始*
