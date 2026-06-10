@@ -66,6 +66,7 @@
 | ✅ 完了 | GitHub remoteリポジトリ作成・push | 2026-06-09 | https://github.com/noregista/furniture-layout-simulator (private) |
 | ✅ 完了 | Priority-A UI改善: インテリアデザイン感強化 | 2026-06-10 | 家具ビジュアル・サンプル6点・ShoppingList・ヒーロー刷新。E2E 13/13 pass |
 | ✅ 完了 | Priority-A追加: 家具リアリティ・キャンバス質感向上 | 2026-06-10 | bed/desk/chair/rug等の家具マーカー全面刷新、選択枠を上品に、壁・グリッド・床をsofterに、サンプルレイアウト再構成、ヒーロー差し替え。E2E 13/13 pass |
+| ✅ 完了 | 家具表現の根本刷新（専用アイコン化）+ LP全面リデザイン | 2026-06-10 | 優先6カテゴリ(bed/desk/chair/rug/tv_stand/storage_shelf)を専用Konvaコンポーネント化。Warm Editorialパレット導入。LPヒーローを「部屋イラスト＋失敗回避コピー」に全面刷新（旧モックアップ廃止）。リファクタ起因の重大バグ（優先6カテゴリの家具がキャンバス上でクリック選択・ドラッグ不能）を発見・修正。E2E 13/13 pass |
 | ⬜ 未着手 | 匿名共有URL機能 | 次回優先 | レイアウトをURLで共有できるようにする |
 | ⬜ 未着手 | 簡易3Dプレビュー | 共有URL後 | Three.js等で2D→3D切替 |
 | ⚠️ リリース前必須 | **Keepa API検証**（Amazon.co.jp 家具30〜50件） | リリース前 | 商品名・画像URL・本体寸法・梱包寸法・価格の取得率を記録。€19/月課金後に実施 |
