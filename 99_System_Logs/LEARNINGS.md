@@ -162,6 +162,30 @@
 - 教訓: 「見た目の質感を上げてほしい」という指摘は大改修のサインではなく、まず色・サイズ・余白などの
   パラメータレベルの調整で対応できないか検討する。各修正は対象を絞ったセルフチェック画像で個別に検証する
 
+**[実装] 匿名共有URL機能をhash fragment方式（`/share#data=<encoded>`）で実装**
+- オーナーから「`/share/[id]`にパス埋め込みだとサーバーログ・解析ログに圧縮データが残る」との指摘を受け、
+  `#data=...`のhash fragment方式に変更。hashはブラウザからサーバーへ送信されないため匿名共有の趣旨に合致する
+- packages/sharedにSharedLayoutPayload型+zodバリデーション(items最大50件、寸法/座標に範囲制約)を追加し、
+  decode処理(`decodeSharedLayout`)はdecompress失敗・JSON長超過(50KB)・JSON.parse失敗・zod検証失敗のいずれでも
+  例外を投げず`null`を返す設計にした。呼び出し側はnullチェックのみでクラッシュしない
+- ペイロードには部屋サイズ・家具配置・商品名・寸法・価格・URLのみを含め、レイアウト名やメモ等の個人情報は
+  型定義の時点で存在させないことで「入れ忘れ」を構造的に防止した
+
+**[失敗→修正] E2Eで「同じ/shareパス上のhash変更」だけではuseEffectが再実行されなかった**
+- `/share#data=<正常データ>`から`page.goto('/share#data=invalid')`へ遷移しても、pathnameが同じため
+  Next.jsはsame-document navigationとして扱い、ShareViewコンポーネントがアンマウントされず`useEffect(() => {...}, [])`が
+  再実行されなかった。結果、不正hashのテストが「直前の正常な表示」のままでエラー画面を検出できずタイムアウトした
+- → テスト中で一度`/simulator`など別パスへ遷移してから`/share#data=invalid`へ遷移することで、
+  確実にページがフルリロードされエラー画面が表示されるよう修正
+- 教訓: hash fragmentのみで状態を切り替えるページをE2Eでテストする際は、hash変更だけでは
+  クライアントコンポーネントが再マウントされない前提でテストを設計する
+
+**[確認] lz-string@1.5.0は`@types/lz-string`なしでそのまま型安全に使える**
+- `@types/lz-string@1.5.0`をdevDependenciesに追加したところ`deprecated`警告が出た
+- lz-string本体の`typings/lz-string.d.ts`がESM named exportsの型を既に提供しているため、
+  `@types/lz-string`は不要。`import { compressToEncodedURIComponent, decompressFromEncodedURIComponent } from 'lz-string'`
+  のようにnamed importすれば型チェックが通る
+
 ---
 
 ## 合成ログ（週次レビュー時に記入）
