@@ -207,6 +207,22 @@
 - `pnpm-workspace.yaml`は`packages: ["apps/*", "packages/*"]`のみで`scripts/`(`@fls/scripts`)を含まない
 - `npx tsx`や`pnpm --filter @fls/scripts exec tsx`はどちらも失敗する
 - `scripts/`配下には独自の`node_modules`があるため、`cd scripts && ./node_modules/.bin/tsx <file>.ts`で実行する
+- ただし`cd scripts && pnpm run verify-keepa`（`pnpm run`、`--filter`なし）は`scripts/node_modules/.bin/tsx`がPATHに通るため正常に動作する。READMEのKeepa検証手順はこの形式で記載済みで問題なし
+
+**[方針確認] 「3D」を訴求する際は常に「簡易3D」と表記し、過大評価しない**
+- オーナーから「現状の3Dは売りになる高品質3Dではなく、高さ感をざっくり確認する簡易プレビュー」という明確な位置づけ指定があった
+- View3DToggleのラベル・ローディング表示・エラーフォールバック文言を全て「簡易3D」に統一(`apps/web/src/components/editor/View3DToggle.tsx`等)
+- 今後LPに3D訴求セクションを追加する場合も、このトーン(簡易3D=高さ確認用)を踏襲すること
+
+**[発見] MockProviderは未知ASINに対し「モック商品(ASIN)」+疑似乱数寸法を返し、「要確認」バッジのみで配置をブロックしない**
+- `apps/api/src/services/product-data/mock.provider.ts`の`getByAsin`は、`MOCK_DATA`にない実在ASINに対してもダミーの商品名・寸法を返す(`needsUserConfirmation: true`)
+- `ProductCard.tsx`では「要確認」の小バッジ表示のみで、「部屋に置く」操作は通常通り可能
+- KEEPA_API_KEY未設定のままURL入力機能を公開すると、ユーザーに偽の商品情報を見せてしまう。release-checklist.mdにリリースブロッカー候補として記録した
+
+**[コピーレビュー] 「Amazon URLから自動取得」は現状機能を超えた表現だった**
+- `layout.tsx`のmeta description・LPのSTEPS[0]descが、未実装のKeepa自動取得をあたかも現状機能のように記述していた
+- 「家具サイズを入力して部屋に置けるか確認」を主訴求にし、URL欄は「商品メモ・将来の自動取得予定」という補助的な位置づけに修正
+- 今後コピーを書く際は、未実装機能を「対応予定」と書く場合でも、それが主訴求文の冒頭に来ないようにする(主訴求=現状動く機能であるべき)
 
 ---
 
