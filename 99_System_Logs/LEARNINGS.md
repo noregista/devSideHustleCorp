@@ -224,6 +224,24 @@
 - 「家具サイズを入力して部屋に置けるか確認」を主訴求にし、URL欄は「商品メモ・将来の自動取得予定」という補助的な位置づけに修正
 - 今後コピーを書く際は、未実装機能を「対応予定」と書く場合でも、それが主訴求文の冒頭に来ないようにする(主訴求=現状動く機能であるべき)
 
+**[実装] 「人のスケール」機能（複数人・姿勢対応）を`people?: PersonInstance[]`の独立配列として実装**
+- オーナーの最終仕様確認で「自分を置く」(1人・診断/アバター的)案から「人のスケール」(複数人・実用)案に変更。
+  位置づけは「家具サイズ・通路幅・座る/寝るスペース確認のための実用機能」であり、診断・ゲーム性・アバター・体型/性別/服装/顔/写真は一切含めない方針
+- `PersonInstance`は`furniture[]`(家具)とは完全に別の型・別配列とし、`LayoutData`/`SharedLayoutPayload`に
+  `people?: PersonInstance[]`としてoptional追加。`people`キーが無い既存の保存データ・既存の`/share#data=...`リンクは
+  そのまま`safeParse`/JSONパースに通り後方互換が保たれる
+- 姿勢(standing/sitting/lying)ごとにフットプリント(`getPersonFootprintCm`)を分離: standing/sittingは身長によらず固定サイズ、
+  lyingのみ`widthCm: heightCm`として身長がそのまま床面の長さに反映される。2D(react-konva)・3D(@react-three/fiber)の両方で
+  この単一関数を共有することで見た目の整合性を担保した
+- 3Dの「寝た人がベッド上にいれば高さ分かさ上げ・座った人が椅子上にいれば座面高さで表示」は、`RoomCanvas2D`の
+  ドラッグクランプで使っていたcos/sin半幅・半高のAABB式をそのまま`getPersonSurfaceHeightCm`に再利用して実装(「簡易的」と明記)。
+  既存の回転矩形あたり判定ロジックは流用できる場面が多い
+- 3Dモデルは仕様通り`cylinderGeometry`+`sphereGeometry`の組み合わせのみで構成し`capsuleGeometry`は未使用
+  (型・互換性リスク回避が目的で、見た目のリアルさは目的外)
+- UI実装時、PersonSizeCard(リスト行の削除ボタン)とPropertiesPanel(選択中人物パネルの削除ボタン)が同時に
+  画面上に存在しうるため、testidを`person-list-remove-button`/`remove-person-button`で意図的に分けて衝突を回避した
+- E2Eを17→23件に拡張(人物追加/複数人/姿勢切替/保存復元/共有リミックス復元/上限4人ブロック)、型チェック・全件pass
+
 ---
 
 ## 合成ログ（週次レビュー時に記入）
