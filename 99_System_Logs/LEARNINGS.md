@@ -381,6 +381,17 @@
 
 ---
 
+### 2026-06-12
+
+**[落とし穴→修正] `tsx`(esbuild)経由でPlaywrightの`page.evaluate(() => {...})`を実行すると、コールバック内で`const fn = (x) => ...`のような名前付き関数を定義した瞬間に`ReferenceError: __name is not defined`になる**
+- `scripts/self-check-release-readiness.ts`の新規作成時、LPページのOGP系meta(`og:title`等5項目)をまとめて取得するために`page.evaluate(() => { const get = (selector) => document.querySelector(selector)?.getAttribute('content') ?? null; return {...}; })`という形で書いたところ、最初の`page.evaluate`呼び出しで即座に`page.evaluate: ReferenceError: __name is not defined`が発生した
+- 原因: `tsx`はesbuildでTSをトランスパイルしており、`keepNames`相当の挙動により`const get = (selector) => {...}`が`const get = __name((selector) => {...}, "get")`に変換される。Playwrightは`page.evaluate`に渡した関数を`.toString()`でソース文字列化してブラウザコンテキストに送るため、この`__name`呼び出しがそのままブラウザ側に渡るが、`__name`はesbuildがNode側モジュールスコープに注入するヘルパーでありブラウザには存在せず、即エラーになる
+- → `page.evaluate`コールバック内では**名前付きconst/関数を新たに定義せず、各値を直接インラインで記述する**ことで回避(`const meta = await page.evaluate(() => ({ ogTitle: document.querySelector(...)?.getAttribute('content') ?? null, ... }))`のように、オブジェクトリテラルの各プロパティに直接式を書く)
+- 既存16本の自己点検スクリプトがこの問題を踏んでいなかったのは、いずれも`page.evaluate`の中で`document.xxx`を直接返すか単一式のみで、内部に名前付き関数を定義していなかったため(結果的に回避できていただけで意図的な対策ではなかった)
+- 教訓: `tsx`+Playwrightの自己点検スクリプトで`page.evaluate`を書くときは、コールバック内で**ヘルパー関数・named constを新規定義しない**(単一式 or オブジェクトリテラルのみ)というルールを徹底する。複雑な処理が必要な場合は、Node側で値を計算してから`page.evaluate((arg) => ...)`に引数として渡す方式にする
+
+---
+
 ## 合成ログ（週次レビュー時に記入）
 
 *まだ合成なし — 2026-04-11 観察開始*
