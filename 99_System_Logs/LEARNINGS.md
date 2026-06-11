@@ -262,6 +262,38 @@
   教訓: エラー文言を変更したら、その文言を直接アサートしているセルフチェック/E2Eを横断検索して追従させること
 - type-check pass・E2E 23/23 pass・self-check-people.ts全項目OK確認後、commit: 21827e5・push済み
 
+**[致命的バグ→修正] `/simulator`が画面幅576px以下で完全クラッシュしていた根本原因と修正パターン**
+- 左サイドバー(`w-80`=320px)+右パネル(`w-64`=256px)=576pxの固定幅消費により、ビューポート幅576px以下では
+  中央`canvas-area`の幅が0以下になり、react-konvaの`Stage`が`width/height 0`のcanvasに`drawImage`して
+  `InvalidStateError`が発生。Next.jsのエラーバウンダリに捕捉され、画面がほぼ無地になっていた(前回visual reviewで発見)
+- → 修正は「0サイズで描画しない」だけでなく、**768px未満は編集UI自体をマウントしない**という2段構えにした:
+  1. `SimulatorMobileFallback`(新規)を作り、768px未満は`SimulatorLayout`の早期returnでPC/タブレット推奨画面のみ表示。
+     `RoomCanvas2D`/`Room3DScene`は`dynamic(..., { ssr:false })`経由のため、マウントしなければKonva/ThreeのCanvas自体が生成されない
+  2. `useElementSize`(新規、ResizeObserver+useLayoutEffect)で実寸を計測し、0以下の間は`Stage`/`Canvas`を
+     描画せず「画面サイズを広げてください」を表示(768px以上でも理論上の防御として機能)
+- 768pxの判定は`window.matchMedia('(max-width: 767px)')`を使い、`isMobile: boolean | null`の3値管理(`null`=判定前)で
+  SSR/初回クライアントレンダリングの両方を同じ中立な空div(`<div className="h-screen bg-ivory" />`)に倒すことで
+  ハイドレーション不一致を回避した
+- 教訓: 「0サイズでcrashするコンポーネントを直す」だけでなく、「そもそもそのブレークポイントでは別のUIに切り替える」
+  という設計の方が、未対応のモバイル編集UIを段階的に作る前段としても適切な場合がある
+
+**[ハマりどころ] JSX内の条件分岐でラップする際、開きタグと閉じタグの対応をRead確認せず編集すると壊れる**
+- RoomCanvas2Dの`<Stage>...</Stage>`をサイズガード付きの三項演算子`{cond ? (<placeholder/>) : (<Stage>...)}`で
+  ラップする際、最初の編集で開きタグ側だけ変更し、対応する`</Stage>`(+Fragment閉じ)を追従させなかったため、
+  `</Stage>`が二重に残ってJSXが壊れた
+- → Readで実際の行番号・構造を確認してから、開きタグ側の追加と閉じタグ側の追加をペアで編集することで修正
+- 教訓: 複数行にまたがるJSX要素を条件分岐でラップする編集は、1回のEditで開閉両方を変更するか、
+  必ず編集直後にReadで構造を確認する
+
+**[ハマりどころ] Playwrightの`reuseExistingServer: true`は、既存サーバー起動時に新しい`webServer.env`を反映しない**
+- `playwright.config.ts`の`webServer.env`に`NEXT_PUBLIC_ENABLE_URL_IMPORT: 'false'`を追加したが、
+  ポート3000に前回セッションから起動したままの`pnpm dev`サーバーが残っており、`reuseExistingServer: !process.env.CI`(devでは true)
+  によりPlaywrightがそれをそのまま再利用し、新しい環境変数が適用されなかった
+- → `Get-CimInstance Win32_Process`等で該当PIDのプロセスを確認後`Stop-Process -Force`し、ポートを空けてから
+  `playwright test`を実行することで、新しい`env`付きでサーバーが再起動され反映された
+- 教訓: `webServer.env`を変更した場合、devモードでは既存の起動中サーバーが残っていないか確認し、
+  残っていれば一度落としてから`playwright test`を実行する(でないと変更が無視されたままテストがpassしてしまう)
+
 ---
 
 ## 合成ログ（週次レビュー時に記入）
