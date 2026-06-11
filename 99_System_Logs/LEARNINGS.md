@@ -390,6 +390,12 @@
 - 既存16本の自己点検スクリプトがこの問題を踏んでいなかったのは、いずれも`page.evaluate`の中で`document.xxx`を直接返すか単一式のみで、内部に名前付き関数を定義していなかったため(結果的に回避できていただけで意図的な対策ではなかった)
 - 教訓: `tsx`+Playwrightの自己点検スクリプトで`page.evaluate`を書くときは、コールバック内で**ヘルパー関数・named constを新規定義しない**(単一式 or オブジェクトリテラルのみ)というルールを徹底する。複雑な処理が必要な場合は、Node側で値を計算してから`page.evaluate((arg) => ...)`に引数として渡す方式にする
 
+**[運用] 公開判断を1コマンドに集約する`pnpm run preflight`を追加**
+- self-check-release-readiness.ts単体では「画面が動くか」は分かるが、型エラー・本番ビルド失敗・E2E失敗を含めた「公開してよい技術状態か」を毎回個別コマンドで確認するのは確認漏れのリスクがあった
+- → `scripts/preflight.ts`を新規作成し、root `pnpm run preflight`(`pnpm -C scripts run preflight`経由)で type-check → `pnpm --filter web run build` → `pnpm --filter web run test:e2e` → `pnpm run self-check:release` を順に実行。いずれかが失敗(exit code≠0)した場合は以降を`[SKIP]`として停止し、最後にPASS/FAIL/SKIPサマリと`screenshots/release_readiness/README.md`の保存先を表示する設計にした
+- 初回実行は全4ステップPASS(type-check PASS / production build PASS / E2E 31/31 PASS / release readiness self-check 34 PASS・0 FAIL・2 INFO)。INFO2件は`/terms`・`/privacy`の`【運営者名】`等プレースホルダー検出のみで、想定どおりオーナー判断待ち
+- 教訓: 個別の自己点検スクリプトが揃った後は、それらを「公開判断時にどの順番・どのコマンドで実行すべきか」までオーケストレーションするスクリプトを1段上に作ると、確認漏れと手順のばらつきを防げる。**公開判断時は`pnpm run preflight`を実行し、`screenshots/release_readiness/README.md`を確認する**運用にする。preflightでは運営者名・問い合わせ先・管轄裁判所・正式ドメイン・GA4本番有効化・広告/アフィリエイト導入・Keepa API課金検証・法務文言最終妥当性は判断できないため、引き続きオーナー判断待ちとして残る
+
 ---
 
 ## 合成ログ（週次レビュー時に記入）
