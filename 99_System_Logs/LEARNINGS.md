@@ -294,6 +294,35 @@
 - 教訓: `webServer.env`を変更した場合、devモードでは既存の起動中サーバーが残っていないか確認し、
   残っていれば一度落としてから`playwright test`を実行する(でないと変更が無視されたままテストがpassしてしまう)
 
+**[致命的バグ→修正] root `layout.tsx`のグローバル`robots: { index: false, follow: false }`が全ページをnoindexにしていた**
+- favicon/OGP整備のためroot `layout.tsx`を確認したところ、`metadata.robots`に`{ index: false, follow: false }`がグローバル設定されていた
+- `/page.tsx`(LP)は独自の`metadata`を持たないためroot設定をそのまま継承し、**公開予定のLP `/`までnoindexになっていた**
+- `/simulator`・`/share`は元々ページ個別に同じ`robots`を設定済みだったため実害は無かったが、設定意図(個別ページのnoindex)とroot設定(全体noindex)が重複・混在していた
+- → root `layout.tsx`から`robots`キー自体を削除(Next.jsのデフォルト=`index, follow`)。`/simulator`・`/share`はページ個別の`robots`設定でnoindexを維持(Next.jsのmetadataマージはトップレベルキー単位の上書きのため、個別設定はrootの変更の影響を受けない)
+- 教訓: 「個別ページをnoindexにしたい」場合でも、rootレイアウトに`robots`を置くと**それ以外の全ページに波及する**。ページ固有の制御は必ずそのページの`metadata`で行い、root側はサイト全体のデフォルト(通常は未設定=index許可)に留める
+
+**[制約] `next/og`(Satori)は日本語フォントを標準搭載しないため、favicon/OGP画像はテキストなしの図形のみで構成した**
+- `next/og`の`ImageResponse`は内部で`@vercel/og`(Satori)を使うが、デフォルトで同梱されるフォントはラテン文字のみ(`noto-sans-v27-latin-regular.ttf`)
+- 日本語テキストを描画するには`fonts`オプションでCJKフォントのバイナリを別途`fetch`/読み込みする必要があり、ビルド時の追加依存・オフラインビルド失敗リスクが増える
+- → favicon(`icon.tsx`)・apple-icon・OGP/Twitter画像(`opengraph-image.tsx`/`twitter-image.tsx`)は全てWarm Editorialパレットの図形(角丸・色面によるアイコンマーク/簡易フロアプラン)のみで構成し、テキストを一切使わない設計にした
+- サービス名・説明文はSNS側が`<meta property="og:title">`/`<meta property="og:description">`(通常のHTML metaタグ、Satori非経由)から表示するため、日本語タイトルは問題なく表示される
+- 教訓: `next/og`で日本語を含む画像が必要になった場合は、フォント同梱のコスト(ビルド時間・依存関係)と、テキストを使わない図形デザインで代替できないかを先に検討する
+
+**[ハマりどころ→修正] `next/og`のNode runtime(デフォルト)はWindows上で`next build`が"Invalid URL"エラーになる**
+- `icon.tsx`/`apple-icon.tsx`/`opengraph-image.tsx`/`twitter-image.tsx`を作成し`next build`したところ、
+  4ルート全てで`TypeError: Invalid URL` (`fileURLToPath`内、`@vercel/og/index.node.js`)が発生しビルド失敗した
+- 原因: `index.node.js`が`fs.readFileSync(fileURLToPath(join(import.meta.url, "../noto-sans-v27-latin-regular.ttf")))`という形でデフォルトフォントを読み込むが、
+  `path.join`はWindowsでは区切り文字に`\`を使うため、`file:///C:/...`形式の`import.meta.url`を渡すと`file:\C:\...`という不正なURL文字列になり`fileURLToPath`が例外を投げる
+- → 各ファイルに`export const runtime = 'edge'`を追加。Next.jsは`process.env.NEXT_RUNTIME === 'edge'`の場合`@vercel/og/index.edge.js`を使い、
+  こちらはフォント/wasmを`fetch(new URL(...))`で読み込む実装のため`path.join`を経由せず問題が起きない
+- 修正後`next build`は成功(`/icon`等は`ƒ (Dynamic)`としてビルドされる。「edge runtimeを使うとそのページの静的生成が無効になる」という警告が出るが、画像生成ルートは元々動的なので想定通り)
+- 教訓: `next/og`の`ImageResponse`を使うルート(`icon.tsx`/`opengraph-image.tsx`等)は、Windows開発環境では**`export const runtime = 'edge'`を必ず付与する**。Mac/Linuxでは発生しない可能性があるが、Windows/Mac両対応(CLAUDE.md方針)のためビルド確認はWindows側で行う
+
+**[方針確認] noindex/index方針: `/`はindex、`/share`・`/simulator`はnoindex(現状維持)**
+- `/`(LP): 公開時の集客対象としてindex/follow(rootのグローバルnoindexバグ修正により実現)
+- `/share`(共有ページ): ユーザー作成の共有レイアウトが検索結果に出ないようnoindex維持(変更なし)
+- `/simulator`: 現状維持(noindex)を提案・docs/release-checklist.mdに記録。理由は①CSR中心でSSR/初期表示がほぼ空のプレースホルダ(クローラーから見て中身が薄い)、②LPとキーワードが重複しカニバリゼーションのリスクがあるため。公開後Search Consoleの実データを見てindex化を再検討する
+
 **[実装] `/simulator`のフォールバック対象を576px(クラッシュ境界)→1024px未満(UX境界)に拡大**
 - 前回の576pxクラッシュ修正は「壊れない」ための最小境界だったが、768〜1023px(縦向きタブレット等)は
   クラッシュこそしないものの3ペイン編集UI(左サイドバー320px+右パネル256px+中央canvas)が窮屈で実用に耐えない、
