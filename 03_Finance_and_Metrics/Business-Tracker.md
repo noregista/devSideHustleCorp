@@ -85,6 +85,7 @@
 | ⬜ 未着手 | `/simulator` 左/右パネルのDrawer化(開閉式)検討 | 任意 | 1024px未満フォールバック拡大により当面の窮屈さ問題は解消。将来的にスマホ・縦向きタブレット編集対応を行う場合の設計候補として残す |
 | ✅ 完了 | UI/UXポリッシュ(公開前最終調整、A1-A4・B5-B10の10項目) | 2026-06-11 | 必須4項目: LPモバイル横オーバーフロー修正・3D人物standingの太さ調整・2D回転家具ラベル常時正立化・モバイルフォールバック見出し改行修正。任意6項目: 右パネル空状態改善・人のスケールカードのボタン強弱調整・3D壁色warm化・共有ページ見出し/CTA文言改善・商品カードCTA視認性向上。type-check pass・E2E 31/31 pass・Before/Afterスクリーンショット確認済み。詳細は`docs/release-checklist.md`セクション11参照 |
 | ✅ 完了 | UI/UXポリッシュ第2弾(優先度A全8項目: 採寸図感の解消) | 2026-06-12 | オーナーレビュー指摘「採寸ツール感・AIテンプレ感・開発中ツール感」への対応。①寸法ラベルを選択中のみ表示(常時非表示化) ②人物アイコンをグレージュ/テラコッタ系に配色変更+頭部比率縮小 ③3D家具に面別簡易シェーディング追加(shadeColorユーティリティ新規) ④共有ページのタイトル/説明文を「誰かが考えたお部屋のレイアウト」に変更・部屋サイズをキャプション化 ⑤価格未設定の黄色警告バナーを廃止・買い物リストに「価格を追加」インライン入力導線を追加 ⑥LPヒーローをアプリ画面風からレイアウトカード+キャプションに変更 ⑦「人のスケール」カードを家具リストの下へ移動・優先度低下 ⑧右パネル空状態を「次にできること」3カードガイドに変更。type-check・E2E 31/31・preflight(34 PASS/0 FAIL/2 INFO)すべてPASS。スクリーンショット10枚を`screenshots/ui_priority_a_after/`に保存(撮影スクリプト: `scripts/self-check-ui-priority-a-after.ts`)。commit: c6243e7（push未実施・オーナー確認待ち） |
+| ✅ 完了 | B2: 人物の初期配置・重なり順改善(低リスク範囲) | 2026-06-12 | `findFreeStandingPositionCm`を中心点判定からフットプリントAABB×家具/人物AABBの矩形重なり判定に変更(`getRotatedAABB`/`aabbOverlap`/`overlapsAnyRect`新設)。`addPerson`をフットプリント+10cmギャップ基準のグリッド探索に変更し4人配置時の重なりを解消。`clampFootprintToRoomCm`新設でpose変更後のフットプリントを部屋内にクランプ。選択中人物のみ描画順を最前面に回す`renderedPeople`導入(データ順序は不変)。共有ページの人物本体opacity 0.85〜0.95に向上・身長ラベルは控えめ表示(家具寸法ラベルは復活させず)。type-check・E2E 31/31・preflight(34 PASS/0 FAIL/2 INFO)全PASS。screenshots/people_b2_after/に7枚保存。commit: c71ba81・push済み |
 | ⬜ 未着手 | 収益化方法検討（広告・月額・アフィリエイト） | リリース後 | |
 
 ---
@@ -101,13 +102,14 @@
 - 今すぐやらない理由: 機能追加ではない見た目の質感調整であり、各家具ごとに個別レビューが必要で時間がかかる。公開ブロッカーより優先度が低い
 - 着手タイミング: 公開後、最初のユーザーフィードバックを得てから。時間があれば優先6カテゴリのうち最も目立つ1-2点(ベッド・デスク等)から試験着手も可
 
-**B2. 人物の初期配置・重なり順改善**
+**B2. 人物の初期配置・重なり順改善** — ✅ 完了(2026-06-12)
 - 優先度: B
 - 目的: 2D/3D/共有ページで複数人を配置した際に人物が家具や他の人物と重なって視認性が落ちる問題を解消し、「人のスケール」機能の実用性を高める
 - 現状の問題: 今回のスクリーンショット(05/06/08)で2人目以降の人物が家具・他の人物に隠れて見えにくいケースを確認。`addPerson`の初期配置(`findFreeStandingPositionCm`)は家具との重なり回避のみで、人物同士の重なりや描画順(z-order)は未対応
 - 実装方針: ①`addPerson`の初期位置決定で既存人物群とのAABB重複も回避対象に追加 ②2D描画順を「人物は常に家具より前面」または「選択中の人物を最前面」に固定するルールを実装 ③共有ページ(RoomViewer)にも同じ描画順を適用
-- 今すぐやらない理由: 今回の目的(採寸図感の解消)とは直接関係しない実用面の改善で、クリック選択すれば現状でも個別確認は可能。配置ロジック変更はE2E影響範囲調査が必要で工数がかかる
-- 着手タイミング: 公開後、複数人配置の利用が増えた段階。または次回UIポリッシュ枠でE2E影響調査とセットで着手
+- 今すぐやらない理由(着手前メモ): 今回の目的(採寸図感の解消)とは直接関係しない実用面の改善で、クリック選択すれば現状でも個別確認は可能。配置ロジック変更はE2E影響範囲調査が必要で工数がかかる
+- 着手タイミング(着手前メモ): 公開後、複数人配置の利用が増えた段階。または次回UIポリッシュ枠でE2E影響調査とセットで着手
+- ✅完了報告: オーナー指示により低リスク範囲(上記実装方針①②③+pose変更時の部屋内クランプ)で実装完了。type-check・E2E 31/31・preflight全PASS。commit: c71ba81・push済み。詳細は「直近の完了事項」・LEARNINGS.md 2026-06-12参照。pose変更時の家具・他人物との自動重なり回避は今回スコープ外
 
 **B3. LPの独自性改善**
 - 優先度: B
@@ -182,6 +184,7 @@
 
 ## 直近の完了事項（直近30日）
 
+- 2026-06-12: B2「人物の初期配置・重なり順改善」実装完了(優先度B/Cバックログより着手) — オーナー承認に基づき、調査結果どおり低リスク範囲で5点を実装。①`findFreeStandingPositionCm`を中心点判定からフットプリントAABB×家具/人物AABBの矩形重なり判定に変更(`getRotatedAABB`/`aabbOverlap`/`overlapsAnyRect`新設、既存家具+配置済み人物の両方を判定対象に追加) ②`addPerson`をstandingフットプリント(45×25cm)+10cmギャップ基準の部屋内グリッド探索に変更し、4人配置時の重なりを解消 ③`updatePersonPose`に新設`clampFootprintToRoomCm`を適用し、姿勢変更後のフットプリントが部屋外に突き出ないようクランプ(家具・他人物との重なり回避は対象外、今回はスコープ外として明示) ④`RoomCanvas2D`で選択中人物のみ描画順を最前面に回す`renderedPeople`を導入(people配列・保存・共有データの順序は不変) ⑤`PersonIcon2D`に`variant='shared'`を追加し共有ページの人物本体opacityを0.85〜0.95に向上、身長ラベルは小さく半透明(opacity 0.55)・常時表示で控えめに(家具の寸法ラベルは復活させていない)。type-check pass・E2E 31/31 pass・preflight(34 PASS/0 FAIL/2 INFO)全PASS。Before/After確認用スクリーンショット7枚を`screenshots/people_b2_after/`に保存(`scripts/self-check-people-b2-after.ts`)。commit: c71ba81・push済み(origin/mainと同期確認済み)。残課題: pose変更時の家具・他人物との自動重なり回避、chair/sofa/desk等へのスナップは未対応(スコープ外として明示)。詳細はLEARNINGS.md 2026-06-12参照
 - 2026-06-12: UI改善フェーズクローズ＋優先度B/Cバックログ整理(ドキュメントのみ) — UI/UXポリッシュ第2弾(優先度A全8項目、commit c6243e7)のpush完了後、オーナー指示「Keepa API検証(課金判断要)には進まず、残課題を優先度B/Cでバックログ整理する」に対応。本ファイルに「UI/デザイン改善バックログ（優先度B/C・公開後改善候補）」セクションを新設し、8項目(B1:2D家具アイコン質感/B2:人物初期配置・重なり順/B3:LP独自性/C1:3D家具表現/C2:共有ページ見せ方/C3:モバイルフォールバック/C4:インテリアリスト価格表示/C5:3D壁床ラグ質感)を、目的・現状の問題・実装方針・今すぐやらない理由・着手タイミングの5項目で整理。`docs/release-checklist.md`にセクション14「公開判断マトリクスとUI/デザイン改善バックログ」を新設し、残作業全体を「公開ブロッカー」「公開前にできれば(任意)」「公開後改善でよい」「オーナー判断が必要」「自動で進められる」の5分類で整理(見た目の改善B1-C5と公開ブロッカーは別軸であることを明文化)。コード変更なし。詳細はLEARNINGS.md 2026-06-12「[決定]」エントリ参照
 - 2026-06-12: 公開前preflightコマンド(pnpm run preflight) 実装完了 — オーナー指示「公開判断時に一発で実行できるpreflightコマンドを整備する」に対応。`scripts/preflight.ts`を新規作成し、root `package.json`に`preflight`スクリプト(`pnpm -C scripts run preflight`)、`scripts/package.json`に`preflight`スクリプト(`tsx preflight.ts`)を追加。①type-check(`pnpm run type-check`)②production build(`pnpm --filter web run build`)③E2E全件(`pnpm --filter web run test:e2e`)④release readiness self-check(`pnpm run self-check:release`)を順に実行し、いずれかが失敗(exit code≠0)した場合は以降を`[SKIP]`とし、最後に各ステップのPASS/FAIL/SKIPサマリと`Release preflight completed.\nReadiness report:\nfurniture-layout-simulator/screenshots/release_readiness/README.md`を表示する設計。初回実行は4ステップ全PASS: type-check PASS(@fls/shared・@fls/api・@fls/web 3パッケージ)、production build PASS(8ルート生成)、E2E 31/31 PASS(48.6s)、release readiness self-check 34 PASS/0 FAIL/2 INFO(INFO2件は`/terms`・`/privacy`の`【運営者名】`等プレースホルダー検出のみ・想定どおりオーナー判断待ち)。docs/release-checklist.mdにセクション13として実行コマンド・検証内容・失敗時に見る場所・レポート保存先・preflightでは判断できない項目(運営者名・問い合わせ先・管轄裁判所・正式ドメイン・GA4本番有効化・広告/アフィリエイト導入・Keepa API課金検証・法務文言最終妥当性)を追記。**今後、公開判断時は`pnpm run preflight`を実行しレポートを確認する**運用にする。Keepa API課金検証・GA4本番有効化・プレースホルダー確定・法務文言確定は今回も未対応(オーナー判断待ち)。commit: dbaa556・push済み
 - 2026-06-12: リリース前自動検証スクリプト(self-check-release-readiness.ts) 実装完了 — オーナー指示「公開前プレースホルダー確定はやらず、毎回自動実行できるリリース前チェックを整備する」に対応。`scripts/self-check-release-readiness.ts`(Playwright直接操作)を新規作成し、`scripts/package.json`に`self-check:release`スクリプトを追加。本番相当設定(`NEXT_PUBLIC_ENABLE_URL_IMPORT=false`)のNext.js devサーバーを専用ポート(localhost:3100)で起動(既存サーバーがあれば再利用)し、①LP(`/`): 読み込み・desktop/mobile console errorなし・OGP系meta・robots(index可能)・GA4スクリプト未読込・/terms /privacyリンク・mobile 390px横スクロールなし、②Simulator(`/simulator`): 通常UI表示・Konva Canvas非0サイズ・/terms /privacyリンク・「+URL」が`url-import-disabled-message`で無効化・手動入力継続利用可・サンプル部屋読込・2D/簡易3D切替・共有URL生成・tablet(1023px)/mobile(390px)フォールバック表示、③Share(`/share`): 正常URL表示・リミックス導線・noindex維持・mobile崩れなし・不正hashでのエラー表示、④Terms/Privacy: 200表示・robots(index可能)・`【...】`プレースホルダー検出(検出のみ・置換せず)、を自動チェック。完了後`screenshots/release_readiness/README.md`にPASS/FAIL/INFO形式レポート+console error一覧+検出プレースホルダー一覧+スクリーンショット12枚を出力。初回実行は34/34 PASS(INFO2件は`/terms`・`/privacy`の`【運営者名】`等プレースホルダー検出=想定どおり)。プレースホルダーの中身確定・法務文言変更・GA4本番有効化・Keepa課金検証はこのスクリプトでは一切行わず、レポート末尾の「既知の残課題」に列挙するのみ。`pnpm --filter web run type-check`・E2E 31/31 pass。docs/release-checklist.mdに新セクション12として追記。**今後、公開直前には毎回`cd scripts && pnpm run self-check:release`を実行しレポートを確認すること**
