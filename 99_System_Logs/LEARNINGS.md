@@ -434,6 +434,24 @@
 - ASINが実在未確認の「想定例(仮)」であることを`_readme`/`disclaimer`フィールドにJSON自体へ明記し、対象の追加・差し替え(実在ASINへの置換等)がコード変更なしでJSON編集だけで完結するようにした
 - 教訓: 「件数や中身が今後変わる検証対象データ」は、スクリプト本体から分離してJSON/CSV等のfixtureファイルに置くと、(1)差分レビューが容易、(2)データの注記(disclaimer等)をデータ自身に持たせられる、(3)スクリプトのロジック変更とデータ更新を独立に行える、というメリットがある
 
+**[実装パターン] 複数カテゴリの「Before/After」スクリーンショットは、`localStorage`へ`LayoutData`を直接注入して`SimulatorLayout`の自動復元に乗せると効率的**
+- B1(2D家具アイコン質感改善: sofa/bookcase/table/lighting)の検証では、既存サンプル部屋(6カテゴリ)に含まれない4カテゴリを含む10カテゴリ・1120×500cmのカスタム部屋を一括表示する必要があった
+- → `page.evaluate`で`localStorage.setItem('fls_layout_b1-icon-overview', JSON.stringify(layoutData))`+`localStorage.setItem('fls_layout_index', ...)`を直接書き込み`page.reload()`するだけで、`SimulatorLayout`の「保存済みレイアウトが0件なら最初のレイアウトを自動ロードする」既存ロジック(`if (currentFurniture.length > 0) return; ... load(layouts[0].id)`)に乗って任意のレイアウトを再現できた
+- 教訓: E2E/セルフチェックスクリプトで「特定の家具配置を再現したい」場合、UI操作(ドラッグ配置)を自動化するより、`LayoutData`を直接組み立てて`localStorage`に注入し既存の復元ロジックに委ねる方が、座標計算(`computeGeom`でPADDING_PX/scale/offsetを再現する必要はある)以外の手間が小さく安定する
+
+**[ハマりどころ→修正] `RoomViewer`(共有ページ)のスクリーンショットがCanvas未描画で空白になる場合は、ResizeObserverによる非同期レンダリングを待つ**
+- B1の検証で`/share`ページのスクリーンショット(07_share_view.png)が、家具リスト部分は正しく表示されるのにルームプレビュー部分だけ空白になった
+- 原因: `RoomViewer.tsx`はコンテナの実寸を`ResizeObserver`で計測してから`{width > 0 && <Stage ...>}`としてKonva `Stage`を初回マウントするため、`page.goto`直後はまだ`width===0`でStageが存在せず、その状態でスクリーンショットを撮ってしまっていた
+- → スクリーンショット前に`await page.locator('[data-testid="share-view"] canvas').first().waitFor()`でcanvas要素の出現を待ち、さらに`await page.waitForTimeout(300)`でKonvaの初回描画完了を待つことで解消
+- 教訓: ResizeObserverで初回マウントを遅延させているKonva/Three.jsコンポーネントをスクリーンショット対象にする場合は、要素の「存在」だけでなく「初回描画」を待つ(canvas要素のwaitFor+短いtimeout)必要がある。`RoomViewer.tsx`以外にも同様のパターンがあれば同じ対策が必要
+
+**[完了] B1「2D家具アイコンの質感改善」(sofa/bookcase/table・任意でlighting)実装完了、オーナーレビュー合格**
+- 優先度B/Cバックログ(2026-06-12整理)のB1に着手。優先6カテゴリの専用Konvaアイコン化(2026-06-10)時点で未対応だったsofa/bookcase/table/lightingの4カテゴリに新規アイコンを実装(`SofaIcon.tsx`/`BookcaseIcon.tsx`/`TableIcon.tsx`/`LightingIcon.tsx`)し`FURNITURE_ICONS`に登録
+- 各家具とも「面の重なり・濃淡差で形状を表現する」(2026-06-10の教訓)を踏襲: ソファは背もたれ+左右肘掛け+座面クッション3分割(折りジワ)、本棚は棚板フレーム+縦仕切り3区画+高さ違いの本の背表紙、テーブルは木目天板+縁ベベル+四隅の控えめな脚ヒント
+- type-check・E2E 31/31・preflight(34 PASS/0 FAIL/2 INFO)全PASS。8種のBefore/Afterスクリーンショットでオーナーレビューを受け合格。commit: a9fabb2・push済み
+- オーナーから「ソファの色がやや冷たいグレー寄り」「テーブルがまだ若干平面的」というコメントがあったが、公開ブロッカーではないため今回は対応せず、優先度B/Cバックログに残課題として記録(チェアのロボット感も含め将来の任意改善)
+- 教訓: 「気になる点はあるが公開ブロッカーではない」というオーナー判断を受けた際は、その場で追加修正せずバックログに記録してクローズする方が、デザイン調整の長期化を防げる(2026-06-10の「微調整はパラメータ調整で対応できた」とは別軸の「いつ止めるか」の判断)
+
 ---
 
 ## 合成ログ（週次レビュー時に記入）
