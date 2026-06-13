@@ -484,6 +484,20 @@
 - release-checklist.mdセクション7/13・14と Business-Tracker.md冒頭のKeepa案A/B行は、当日早い段階の編集で既に「案A/案B」framingに揃っていたため、本タスクでは追加編集が不要だった(整合性確認のみで完了)
 - 教訓: 「オーナー判断待ち」項目を複数ドキュメントに分散させず、1つの「decision pack」(状態まとめ+判断テーブル+推奨+回答欄+決定後の実行手順+禁止事項)に集約すると、オーナーが短時間で判断でき、Claude側も回答後にどの手順へ進むかが一意に決まる。今後も「複数のオーナー判断が同時に積み上がった」タイミングで同様のdecision packを作成する価値がある
 
+**[完了] 確定事項（サービス名・運営者情報・ドメイン/デプロイ・GA4・Keepa位置づけ）のサイト/規約/ドキュメントへの反映完了**
+- `docs/owner-decision-pack.md`の回答欄に基づき、オーナーより以下が確定: ①サービス名「おけるかな」(運営者名saison・問い合わせ先okerukana@gmail.com・管轄裁判所大阪地方裁判所) ②正式ドメイン`okerukana.com`(お名前.comで取得予定) ③デプロイ先AWS(Amplify Hosting + Lambda/API Gateway) ④GA4は本番で有効化する ⑤Keepaは案A「公開前必須」を維持(案B不採用、URL自動取得なしでは正式公開しない)
+- サイト本体(`layout.tsx`のSITE_NAME・LP/`/terms`/`/privacy`/`/share`/`/simulator`・各コンポーネントのブランド表記・README)を「おけるかな」に統一。自然な説明文の「家具配置シミュレーター」「家具配置を確認できるサービス」はそのまま維持し、固有名詞としての旧称「家具レイアウトシミュレーター」のみ置換
+- `/terms`・`/privacy`の`【正式サービス名】`等のプレースホルダーを全て確定情報に置換。`/privacy`の「アクセス解析ツール等は導入していません」はGA4利用前提の記載(Cookie利用・個人非特定・ブラウザでの無効化可・Googleポリシー参照)に書き換え。指示どおり法務文言の大幅リライトはせず既存ドラフトの構造・条文番号を維持
+- `docs/release-checklist.md`・`docs/owner-decision-pack.md`・`scripts/self-check-release-readiness.ts`・`Business-Tracker.md`に分散していた「案A/案B」「位置づけ2案・オーナー判断待ち」表記を全て「案A確定」に統一。正式ドメイン・デプロイ先は確定内容をドキュメントに記録するのみとし、`NEXT_PUBLIC_SITE_URL`設定・ドメイン取得・AWSデプロイ・GA4実測定ID設定・Keepa課金・`KEEPA_API_KEY`設定・実Keepa API呼び出し・広告タグ追加・Amazonアソシエイト導入は一切実施せず
+- 教訓: 複数ドキュメント(release-checklist/owner-decision-pack/Business-Tracker/self-check script)に同じ「未確定」framing(案A/案B、`【...】`プレースホルダー、TODO)が分散している場合、確定後はGrepで全箇所を網羅的に洗い出してから一括更新する。見出し文言を変更するとMarkdownのアンカーIDも変わるため、相互参照リンク(`#7-...`等)の追従漏れがないか別途確認するステップが必須(本件ではセクション7・10の見出し変更が複数ファイルのリンクに連鎖した)
+- 検証実施: `pnpm run preflight`を再実行し type-check PASS(4パッケージ)・production build PASS・E2E 31/31 PASS・release readiness self-check **36 PASS/0 FAIL/0 INFO**(`/terms`・`/privacy`のプレースホルダーINFO2件が解消)を確認。スクリーンショット12枚を`screenshots/release_readiness/`に再取得し、LP/`/terms`/`/privacy`の表示で「おけるかな」表記・GA4記載を目視確認
+
+**[発見・解消] プロジェクトディレクトリ移動(`/c/dev/furniture-layout-simulator` → `/c/dev/services/furniture-layout-simulator`)後、`scripts/`配下のシンボリックリンクが旧パスを指したまま残り`pnpm run preflight`のrelease readiness self-checkが失敗する**
+- `scripts/node_modules/{tsx,typescript,@fls/shared,@types/node}`等が旧パス`/c/dev/furniture-layout-simulator/node_modules/...`への壊れたシンボリックリンクのままだった。`tsx`/`typescript`はpnpmのPATH解決でルートの`node_modules/.bin`(新パス)が優先されるため動いていたが、`self-check-release-readiness.ts`が直接`import`する`playwright`はどこにも解決できずクラッシュした
+- 根本原因: `scripts/`は`pnpm-workspace.yaml`の`packages`(`apps/*`・`packages/*`)に含まれておらず、ワークスペース外のディレクトリとして手動でシンボリックリンクされていた(おそらく旧パス時代に`pnpm install`が走った名残)
+- 対応: `pnpm-workspace.yaml`の`packages`に`"scripts"`を追加してワークスペースメンバー化し、`scripts/package.json`に`playwright`(`@playwright/test`が依存する実体、`1.60.0`)を直接の`devDependencies`として追加。ルートで`pnpm install`を実行し、`scripts/node_modules`配下を新パス基準のシンボリックリンクに再作成して解決(`pnpm-lock.yaml`更新、`scripts/node_modules`はgitignore対象でコミット影響なし)
+- 教訓: プロジェクトディレクトリを移動した場合、`pnpm-workspace.yaml`の`packages`に含まれないディレクトリ(今回の`scripts/`)のシンボリックリンクは`pnpm install`では検知・修復されない。「type-check/build/E2Eは通るがpreflightの一部だけ`Cannot find module`で失敗する」パターンを見たら、ワークスペース外ディレクトリの`node_modules`のシンボリックリンク先(`ls -la`で実体パス確認)をまず疑う
+
 ---
 
 ## 合成ログ（週次レビュー時に記入）
