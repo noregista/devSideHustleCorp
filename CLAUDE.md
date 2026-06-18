@@ -21,12 +21,15 @@
 ```
 devSideHustleCorp/
 ├── 00_Corporate_Identity/   # 会社ビジョン・方針・ブランド素材
-├── 01_Threads_Automation/   # Threads自動投稿プロジェクト（既存・稼働中）
 ├── 02_Project_Incubator/    # 新規プロジェクト企画・リサーチ
 ├── 03_Finance_and_Metrics/  # 収益・コスト管理（Markdown形式）
 ├── 99_System_Logs/          # AIの記憶・改善ログ・ルール更新履歴
+├── MAC_PENDING_TASKS.md     # Mac側で実行する申し送りタスク（下記セクション9参照）
 └── CLAUDE.md                # 本ファイル（AI行動指針）
 ```
+
+> **廃止済み**: `01_Threads_Automation`（Threads自動投稿）・`04_KDP_Automation`（KDP書籍自動生成）は
+> 2026-06-18にプロジェクトごと撤去した。コスト削減のため。GitHubリポ `noregista/threads_bot` は残置。
 
 ---
 
@@ -98,4 +101,21 @@ devSideHustleCorp/
 
 ---
 
-*最終更新: 2026-04-11 | 更新者: AI統括マネージャー（LEARNINGS.md・Business-Tracker.md 導入）*
+## 9. Mac申し送りタスク（Windows↔Mac連携）
+
+WindowsとMacは同じClaude Codeで運用するが、Mac固有の操作（LaunchAgent停止・plist削除など）はMac側でしか実行できない。
+そこでWindows側は `MAC_PENDING_TASKS.md` にやってほしい作業を書き込み、Mac側がpull時に拾う。
+
+**Mac側のClaude Codeは、セッション開始時または `git pull` 直後に以下を行う：**
+
+1. `MAC_PENDING_TASKS.md` を開く
+2. 「## 未実行タスク」に `[ ]`（未完了）があれば、内容をユーザーに要約提示する
+3. 各タスクは具体的なコマンドまで書かれているので、通常のルール（破壊的操作の前に一声かける）に従って実行する
+4. 成功したら `[ ]` を `[x]` にし、完了セクションを削除する
+5. 全完了後は「## 未実行タスク」の下を「（なし）」に戻してコミット・push
+
+「（なし）」状態なら何もしなくてよい。ユーザーがMacで「pullして」と言えば上記が回る。
+
+---
+
+*最終更新: 2026-06-18 | 更新者: AI統括マネージャー（KDP・Threads撤去、Mac申し送り機構を導入）*
