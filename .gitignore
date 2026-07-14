@@ -11,6 +11,13 @@ desktop.ini
 *.swp
 *.swo
 
+# Python
+__pycache__/
+*.pyc
+
+# ローカル専用のClaude Code設定（マシン固有の絶対パス・許可設定を含むためコミットしない）
+.claude/
+
 # Secrets（念のため）
 *.env
 .env
